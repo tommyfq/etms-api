@@ -26,8 +26,8 @@ const list = (req,res) => {
   var column_sort = "id";
   var order = "asc"
 
-  if(req.body.hasOwnProperty("column_sort")){
-    column_sort = req.body.column_sort
+  if(req.body.hasOwnProperty("sort")){
+    column_sort = req.body.sort
   }
 
   if(req.body.hasOwnProperty("order")){
@@ -41,17 +41,18 @@ const list = (req,res) => {
   console.log(column_sort);
   
   if(column_sort == 'dc_name'){
-    param_order = ['dc','name', order];
+    param_order = ['dc','dc_name', order];
   }else{
     param_order = [column_sort,order];
   }
 
-  if(req.body.hasOwnProperty("search_dc_name")){
-    if(req.body.search_dc_name != ""){
+  if(req.body.hasOwnProperty("filter_dc")){
+    if(req.body.filter_dc != ""){
+        const arrDC = req.body.filter_dc.split(',').map(Number);
         where_query = {
             ...where_query,
-            '$dc.dc_name$': {
-                [Op.iLike]: '%'+req.body.search_dc_name+'%'
+            id: {
+                [Op.in]: arrDC
             }
         }
     }
@@ -93,20 +94,75 @@ const list = (req,res) => {
       raw:true
   })
   .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Data Found in Store",
-              data:result.rows,
-              total:result.count
-          })
-      }else{
-          res.status(200).send({
-              message:"Success",
-              data:result.rows,
-              total:result.count,
-              page:req.body.page,
-              item_per_page:10
-          })
+    
+      // if(result.count == 0){
+      //     res.status(200).send({
+      //         message:"No Data Found in Store",
+      //         data:result.rows,
+      //         total:result.count
+      //     })
+      // }else{
+      //     res.status(200).send({
+      //         message:"Success",
+      //         data:result.rows,
+      //         total:result.count,
+      //         page:req.body.page,
+      //         item_per_page:10
+      //     })
+      // }
+      const total_pages = Math.ceil(result.count / page_length);
+      if (result.count === 0) {
+
+        res.status(200).send({
+          message: "No Data Found in Store",
+          data: result.rows,
+          payload: {
+            pagination: {
+              page: page,
+              first_page_url: "/?page=1",
+              from: 0,
+              last_page: total_pages,
+              links: [
+                { url: null, label: "&laquo; Previous", active: false, page: null },
+                { url: "/?page=1", label: "1", active: true, page: 1 },
+                { url: "/?page=2", label: "2", active: false, page: 2 }
+              ],
+              next_page_url: null,
+              items_per_page: page_length,
+              prev_page_url: null,
+              to: 0,
+              total: result.count
+            }
+          }
+        });
+      } else {
+        res.status(200).send({
+          message: "Success",
+          data: result.rows,
+          payload: {
+            pagination: {
+              page: page,
+              first_page_url: "/?page=1",
+              from: (page - 1) * page_length + 1,
+              last_page: total_pages,
+              links: [
+                { url: page > 1 ? `/?page=${page - 1}` : null, label: "&laquo; Previous", active: false, page: page - 1 },
+                ...Array.from({ length: total_pages }, (_, i) => ({
+                  url: `/?page=${i + 1}`,
+                  label: (i + 1).toString(),
+                  active: page === i + 1,
+                  page: i + 1
+                })),
+                { url: page < total_pages ? `/?page=${page + 1}` : null, label: "Next &raquo;", active: false, page: page + 1 }
+              ],
+              next_page_url: page < total_pages ? `/?page=${page + 1}` : null,
+              items_per_page: page_length,
+              prev_page_url: page > 1 ? `/?page=${page - 1}` : null,
+              to: page * page_length,
+              total: result.count
+            }
+          }
+        });
       }
   });
 };
