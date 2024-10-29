@@ -1,5 +1,6 @@
 /config/*
 /node_modules
 /uploads/*
+/public/*
 package-lock.json
 *.sh
