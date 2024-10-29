@@ -1,4 +1,4 @@
-//const { authJwt, upload } = require("../middleware");
+const { authJwt } = require("../middleware");
 const controller = require("../controllers/asset.controller");
 
 module.exports = function(app) {
@@ -28,7 +28,7 @@ module.exports = function(app) {
 
   app.get(
     "/api/asset/list-option",
-    [],
+    [authJwt.verifyToken],
     controller.listOption
   );
 };

@@ -1,4 +1,4 @@
-const { upload } = require("../middleware");
+const { uploadExcel } = require("../middleware");
 const controller = require("../controllers/store.controller");
 
 module.exports = function(app) {
@@ -28,7 +28,7 @@ module.exports = function(app) {
 
   app.patch(
     "/api/store/upload",
-    [upload.single("file")],
+    [uploadExcel.single("excelFile")],
     controller.upload
   );
 };

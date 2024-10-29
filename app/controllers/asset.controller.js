@@ -325,16 +325,39 @@ async function create (req,res){
 
 const listOption = (req,res) => {
 
-  var param_order = ['company_name', "asc"];
+  var param_order = [
+    [Sequelize.col('item.brand'), 'ASC'],
+    [Sequelize.col('item.model'), 'ASC'] 
+  ];
   var where_query = {'is_active':true}
 
-  Companies.findAll({
+  Asset.findAll({
+      include:[
+        { 
+          model: Item, 
+          as : 'item',
+          attributes: []
+        },
+        { 
+          model: Store, 
+          as : 'store',
+          attributes: []
+        },
+        { 
+          model: DC, 
+          as : 'dc',
+          attributes: []
+        },
+      ],
       attributes:[
-        ['id','company_id'],
-        'company_name',
+        ['id','asset_id'],
+        [Sequelize.col('item.brand'), 'brand'],
+        [Sequelize.col('item.model'), 'model'],
+        [Sequelize.col('store.store_name'), 'store_name'],
+        [Sequelize.col('dc.dc_name'), 'dc_name']
       ],
       where: where_query,
-      order: [param_order],
+      order: param_order,
       raw:true
   })
   .then(result => {

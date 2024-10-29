@@ -1,9 +1,11 @@
-// const authJwt = require("./authJwt");
+const authJwt = require("./auth");
 // const verifySignUp = require("./verifySignUp");
-const upload = require("./upload");
+const {uploadExcel, uploadImages, storeImages} = require("./upload");
 
 module.exports = {
-//   authJwt,
+  authJwt,
 //   verifySignUp,
-  upload
+  uploadExcel,
+  uploadImages,
+  storeImages
 };
