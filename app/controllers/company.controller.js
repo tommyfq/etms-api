@@ -3,6 +3,7 @@ const Companies = db.companies;
 const Users = db.users;
 const Op = db.Sequelize.Op;
 const { sequelize, Sequelize } = require("../models");
+const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
 const list = (req,res) => {
   /* search by company name */
@@ -17,8 +18,8 @@ const list = (req,res) => {
     order
   */
 
-  var page = req.body.page;
-  var page_length = 20; //default 20
+  let page = parseInt(req.body.page, 10);
+  var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
   var order = "asc"
 
@@ -84,19 +85,29 @@ const list = (req,res) => {
       raw:true
   })
   .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Data Found in Dealer",
-              data:result.rows,
-              total:result.count
-          })
-      }else{
-          res.status(200).send({
-              message:"Success",
-              data:result.rows,
-              total:result.count
-          })
-      }
+
+    const total_count = result.count; // Total number of items
+    const total_pages = Math.ceil(total_count / page_length)
+
+    if (result.count === 0) {
+
+      res.status(200).send({
+        message: "No Data Found in Company",
+        data: result.rows,
+        payload: createPaginationNoData(page, total_pages, page_length, 0)
+      });
+    } else {
+      console.log(page)
+      console.log(total_pages)
+      
+      res.status(200).send({
+        message: "Success",
+        data: result.rows,
+        payload: {
+          pagination: createPagination(page, total_pages, page_length, result.count)
+        }
+      });
+    }
   });
 };
 

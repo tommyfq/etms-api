@@ -4,13 +4,22 @@ const config = require("../../config/app.config");
 verifyToken = (req, res, next) => {
     let token = req.headers['authorization'];
     console.log(token);
-    token = token.replace("Bearer ","");
-  
+
     if (!token) {
+      console.log("MASUK")
       return res.status(403).send({
         message: "No token provided!"
       });
     }
+
+    if (!token.startsWith("Bearer ")) {
+      console.log("MASUK SINI")
+      return res.status(403).send({
+        message: "No token provided!"
+      });
+    }
+
+    token = token.replace("Bearer ","");
   
     jwt.verify(token, config.secret, (err, decoded) => {
         console.log(err);
