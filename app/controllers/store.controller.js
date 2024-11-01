@@ -218,14 +218,14 @@ async function update (req,res) {
         store_code: req.body.store_code,
         id: { [Op.ne]: req.body.id }
     }
-});
+  });
 
-if(existStoreCode){
-    return res.status(200).send({
-        is_ok:false,
-        message:"Store Code is already exist"
-    });
-}
+  if(existStoreCode){
+      return res.status(200).send({
+          is_ok:false,
+          message:"Store Code is already exist"
+      });
+  }
 
   const dcId = await DC.findOne({
       where:{

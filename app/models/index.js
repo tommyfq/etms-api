@@ -40,6 +40,11 @@ db.companies.belongsTo(db.users,{
     targetKey:"id"
 });
 
+db.companies.hasMany(db.dcs,{ 
+  foreignKey: 'company_id', 
+  as: 'dcs' 
+})
+
 db.dcs.belongsTo(db.companies,{
   foreignKey:"company_id",
   targetKey:"id"
