@@ -131,6 +131,7 @@ const detail = (req,res) => {
         'createdAt',
         'updatedAt',
         'default_agent_id',
+        'company_code',
         [Sequelize.col('user.name'), 'agent_name']
       ],
       where:{id:id}
@@ -174,6 +175,20 @@ async function update (req,res) {
       });
     }
   }
+
+  const existCompanyCode = await Companies.findOne({
+    where:{
+        company_code: req.body.company_code,
+        id: { [Op.ne]: req.body.id }
+    }
+  });
+
+  if(existCompanyCode){
+      return res.status(200).send({
+          is_ok:false,
+          message:"Company Code is already exist"
+      });
+  }
   
   //const t = await sequelize.transaction();
   try {
@@ -206,6 +221,19 @@ async function create (req,res){
     }
   }
 
+  const existCompanyCode = await Companies.findOne({
+    where:{
+        company_name: req.body.company_code
+    }
+});
+
+if(existCompanyCode){
+    return res.status(200).send({
+        is_ok:false,
+        message:"Company Code is already exist"
+    });
+}
+
   const existCompany = await Companies.findOne({
       where:{
           company_name: req.body.company_name
@@ -215,7 +243,7 @@ async function create (req,res){
   if(existCompany){
       return res.status(200).send({
           is_ok:false,
-          message:"Company Name Already Exist"
+          message:"Company Name is already exist"
       });
   }
 
@@ -228,7 +256,7 @@ async function create (req,res){
   if(!agentId){
       return res.status(200).send({
           is_ok:false,
-          message:"User not found"
+          message:"User is not found"
       });
   }
 
@@ -239,7 +267,8 @@ async function create (req,res){
         is_active:req.body.is_active,
         contact_name:req.body.contact_name,
         contact_number:req.body.contact_number,
-        default_agent_id:req.body.default_agent_id
+        default_agent_id:req.body.default_agent_id,
+        company_code:req.body.company_code
       }
       
       await Companies.create(data,{t});
