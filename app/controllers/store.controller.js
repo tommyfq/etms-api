@@ -5,8 +5,9 @@ const Company = db.companies;
 const Op = db.Sequelize.Op;
 const fs = require("fs");
 const path = require("path");
-const reader = require('xlsx');
+const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
+const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
 const list = (req,res) => {
   /* search by dc name */
@@ -21,7 +22,7 @@ const list = (req,res) => {
     order
   */
 
-  var page = req.body.page;
+  let page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
   var order = "asc"
@@ -69,23 +70,62 @@ const list = (req,res) => {
     }
   }
 
+  if(req.body.hasOwnProperty("search")){
+    if(req.body.search != ""){
+        where_query = {
+            ...where_query,
+            [Op.or]: [
+              {
+                  '$dc.dc_name$': {
+                      [Op.iLike]: `%${req.body.search}%`
+                  }
+              },
+              {
+                  '$dc.company.company_name$': {
+                      [Op.iLike]: `%${req.body.search}%`
+                  }
+              },
+              {
+                store_name: {
+                    [Op.iLike]: `%${req.body.search}%`
+                }
+              },
+              {
+                store_code: {
+                    [Op.iLike]: `%${req.body.search}%`
+                }
+              },
+          ]
+        }
+    }
+  }
+
 
   Store.findAndCountAll({
       include: [
         { 
           model: DC, 
           as : 'dc',
-          attributes: []
+          attributes: [],
+          include:[
+            {
+              model: Company, 
+              as : 'company',
+              attributes: [],
+            }
+          ]
         },
       ],
       attributes:[
         'id',
+        'store_code',
         'store_name',
         'address',
         'createdAt',
         'updatedAt',
         'is_active',
-        [Sequelize.col('dc.dc_name'), 'dc_name']
+        [Sequelize.col('dc.dc_name'), 'dc_name'],
+        [Sequelize.col('dc.company.company_name'), 'company_name']
       ],
       where: where_query,
       offset: (page-1)*page_length,
@@ -95,75 +135,26 @@ const list = (req,res) => {
   })
   .then(result => {
     
-      // if(result.count == 0){
-      //     res.status(200).send({
-      //         message:"No Data Found in Store",
-      //         data:result.rows,
-      //         total:result.count
-      //     })
-      // }else{
-      //     res.status(200).send({
-      //         message:"Success",
-      //         data:result.rows,
-      //         total:result.count,
-      //         page:req.body.page,
-      //         item_per_page:10
-      //     })
-      // }
-      const total_pages = Math.ceil(result.count / page_length);
-      if (result.count === 0) {
+    const total_count = result.count; // Total number of items
+    const total_pages = Math.ceil(total_count / page_length)
 
-        res.status(200).send({
-          message: "No Data Found in Store",
-          data: result.rows,
-          payload: {
-            pagination: {
-              page: page,
-              first_page_url: "/?page=1",
-              from: 0,
-              last_page: total_pages,
-              links: [
-                { url: null, label: "&laquo; Previous", active: false, page: null },
-                { url: "/?page=1", label: "1", active: true, page: 1 },
-                { url: "/?page=2", label: "2", active: false, page: 2 }
-              ],
-              next_page_url: null,
-              items_per_page: page_length,
-              prev_page_url: null,
-              to: 0,
-              total: result.count
-            }
-          }
-        });
-      } else {
-        res.status(200).send({
-          message: "Success",
-          data: result.rows,
-          payload: {
-            pagination: {
-              page: page,
-              first_page_url: "/?page=1",
-              from: (page - 1) * page_length + 1,
-              last_page: total_pages,
-              links: [
-                { url: page > 1 ? `/?page=${page - 1}` : null, label: "&laquo; Previous", active: false, page: page - 1 },
-                ...Array.from({ length: total_pages }, (_, i) => ({
-                  url: `/?page=${i + 1}`,
-                  label: (i + 1).toString(),
-                  active: page === i + 1,
-                  page: i + 1
-                })),
-                { url: page < total_pages ? `/?page=${page + 1}` : null, label: "Next &raquo;", active: false, page: page + 1 }
-              ],
-              next_page_url: page < total_pages ? `/?page=${page + 1}` : null,
-              items_per_page: page_length,
-              prev_page_url: page > 1 ? `/?page=${page - 1}` : null,
-              to: page * page_length,
-              total: result.count
-            }
-          }
-        });
-      }
+    if (result.count === 0) {
+
+      res.status(200).send({
+        message: "No Data Found in Store",
+        data: result.rows,
+        payload: createPaginationNoData(page, total_pages, page_length, 0)
+      });
+    } else {
+      
+      res.status(200).send({
+        message: "Success",
+        data: result.rows,
+        payload: {
+          pagination: createPagination(page, total_pages, page_length, result.count)
+        }
+      });
+    }
   });
 };
 
@@ -180,6 +171,7 @@ const detail = (req,res) => {
       ],
       attributes:[
         'id',
+        'store_code',
         'store_name',
         'is_active',
         'address',
@@ -201,7 +193,9 @@ async function update (req,res) {
 
   const existStoreName = await Store.findOne({
       where:{
-          store_name: req.body.store_name,
+          store_name: {
+            [Op.iLike]: req.body.store_name // Use Op.iLike for case-insensitive matching
+          },
           id: { [Op.ne]: req.body.id }
       }
   });
@@ -276,7 +270,9 @@ async function create (req,res){
 
   const existStoreName = await Store.findOne({
       where:{
-          store_name: req.body.store_name
+          store_name: {
+            [Op.iLike]: req.body.store_name // Use Op.iLike for case-insensitive matching
+          }
       }
   });
 
@@ -379,20 +375,14 @@ const listStoreOption = (req,res) => {
 
 const upload = async(req, res) => {
   
-  return res.status(200).send({
-    is_ok: true,
-    message: "Successfully Upload : ",
-  });
-
-  /*
   try{
     if (req.file == undefined) {
       return res.status(200).send({
         is_ok: false,
         message: "Please upload a excel file!"});
     }
-    let dir = __basedir + "/uploads/" + req.file.filename;
-    const file = reader.readFile(dir);
+    let dir = __basedir + "/uploads/excel/" + req.file.filename;
+    const file = xlsx.readFile(dir);
     
     const sheets = file.SheetNames
 
@@ -404,7 +394,7 @@ const upload = async(req, res) => {
   
     // for(let i = 0; i < sheets.length; i++)
     // {
-      let temp = reader.utils.sheet_to_json(file.Sheets['dc - store'])
+      let temp = xlsx.utils.sheet_to_json(file.Sheets['store'])
       
       for(let j = 0; j < temp.length; j++){
         //console.log(temp)
@@ -418,11 +408,11 @@ const upload = async(req, res) => {
       }
     // }
     
-    fs.readdir(__basedir + "/uploads/", (err, files) => {
+    fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
       if (err) throw err;
     
       for (const file of files) {
-        fs.unlink(path.join(__basedir + "/uploads/", file), err => {
+        fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
           if (err) throw err;
         });
       }
@@ -432,7 +422,7 @@ const upload = async(req, res) => {
     return res.status(200).send({
       is_ok: true,
       message: "Successfully Upload : " + req.file.originalname,
-      result:result
+      data:result
     });
 
     }catch(error){
@@ -444,10 +434,33 @@ const upload = async(req, res) => {
         error:error.toString()
       });
     }
-      */
 } 
 
 const updateOrCreateStore = async(i,row,t)=>{
+
+  if(!row.hasOwnProperty('Company Code')) {
+    return {is_ok:false,message:"Company Code is blank at row "+(i+1)}
+  }
+
+  if(!row.hasOwnProperty('DC Code')) {
+    return {is_ok:false,message:"DC Code is blank at row "+(i+1)}
+  }
+
+  if(!row.hasOwnProperty('Store Code')) {
+    return {is_ok:false,message:"Store Code is blank at row "+(i+1)}
+  }
+
+  if(!row.hasOwnProperty('Store Name')) {
+    return {is_ok:false,message:"Store Name is blank at row "+(i+1)}
+  }
+
+  if(!row.hasOwnProperty('Address')) {
+    row['Address'] = ''
+  }
+
+  if(!row.hasOwnProperty('Is Active')) {
+    return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
+  }
 
   const existCompany = await Company.findOne({
     where:{
@@ -482,11 +495,23 @@ const updateOrCreateStore = async(i,row,t)=>{
   var storeData = {
     dc_id:existDC.id,
     store_name:row["Store Name"],
-    is_active:false
+    address:row["Address"],
+    is_active:row["Is Active"] == "TRUE" ? true : false,
+    store_code:row["Store Code"]
   }
 
   try{
     if(existStore){
+
+      let hasChanged = Object.keys(storeData).some(key => {
+        // Ensure to handle the case where the key may not exist on existDC
+        return storeData[key] !== existStore[key];
+      });
+  
+      if (!hasChanged) {
+        return { is_ok:false, message: 'No changes detected at row '+(i+1) };
+      }
+
       await Store.update(storeData,
         {
           where:{
@@ -505,8 +530,79 @@ const updateOrCreateStore = async(i,row,t)=>{
     return {is_ok:false,message:error.toString()};
   }
   
-    
 }
+
+const download = async(req, res) => {
+
+  try {
+    // Fetch all data from your data collection
+    const result = await Store.findAll({
+      include: [
+        { 
+          model: DC, 
+          as : 'dc',
+          attributes: ['dc_code','dc_name'],
+          include: [
+            {
+              model: Company, 
+              as : 'company',
+              attributes: ['company_code','company_name'],
+            }
+            
+          ]
+        },
+      ],
+      attributes:[
+        'store_code',
+        'store_name',
+        'address',
+        'is_active',
+        //[Sequelize.col('company.company_code'), 'company_code']
+      ],
+      // You can specify any options here if needed
+    });
+
+    console.log(result)
+
+    const formattedResult = result.map((item, index) => {
+
+      return {
+        No: index + 1, // Incremental number
+        'Store Code':item.store_code,
+        'Store Name': item.store_name, // Use the alias for dc_name
+        'Address': item.address,
+        'Is Active': item.is_active ? 'TRUE' : 'FALSE',
+        'DC Code':item.dc.dc_code,
+        'DC Name':item.dc.dc_name,
+        'Company Code':item.dc.company.company_code,
+        'Company Name': item.dc.company.company_name // Use the alias for company code
+      }
+    });
+
+    // Create a new workbook
+    const workbook = xlsx.utils.book_new();
+
+    // Convert data to a worksheet
+    const worksheet = xlsx.utils.json_to_sheet(formattedResult);
+
+    // Append the worksheet to the workbook
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'store');
+
+    // Create a buffer to write the workbook
+    const excelBuffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+    // Set the response headers for file download
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="store_data.xlsx"');
+
+    // Send the Excel buffer as a response
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error('Error generating Excel file:', error);
+    res.status(500).send('Internal Server Error');
+  }
+}
+
 
 module.exports = {
     create,
@@ -514,5 +610,6 @@ module.exports = {
     detail,
     update,
     listStoreOption,
-    upload
+    upload,
+    download
 }
