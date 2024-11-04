@@ -1,5 +1,5 @@
 module.exports = (sequelize, Sequelize) => {
-    const Store = sequelize.define("user_dc_access", {
+    const UserDCAccess = sequelize.define("user_dc_access", {
         id: {
             type: Sequelize.INTEGER,
             primaryKey: true,
@@ -16,5 +16,5 @@ module.exports = (sequelize, Sequelize) => {
         }
     });
   
-    return Store;
+    return UserDCAccess;
   };

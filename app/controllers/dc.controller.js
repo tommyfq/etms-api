@@ -304,7 +304,7 @@ const listOption = (req,res) => {
   .then(result => {
       if(result.count == 0){
           res.status(200).send({
-              message:"No Data Found in Dealer",
+              message:"No Data Found in DC",
               data:result
           })
       }else{

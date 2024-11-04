@@ -2,9 +2,12 @@ const bcrypt = require('bcryptjs');
 const db = require("../models");
 const Companies = db.companies;
 const Users = db.users;
+const UserDCAccess = db.user_dc_access;
+const DC = db.dcs
 const Roles = db.roles;
 const Op = db.Sequelize.Op;
 const { sequelize, Sequelize } = require("../models");
+const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
 async function hashPassword(plainPassword) {
     const saltRounds = 10; // You can increase the number of salt rounds for more security
@@ -83,13 +86,13 @@ const getListRole = (req,res) => {
       order
     */
   
-    var page = req.body.page;
-    var page_length = 20; //default 20
-    var column_sort = "username";
-    var order = "asc"
+      let page = parseInt(req.body.page, 10);
+      var page_length = req.body.items_per_page; //default 20
+      var column_sort = "id"
+      var order = "desc"
   
-    if(req.body.hasOwnProperty("column_sort")){
-      column_sort = req.body.column_sort
+    if(req.body.hasOwnProperty("sort")){
+      column_sort = req.body.sort
     }
   
     if(req.body.hasOwnProperty("order")){
@@ -108,20 +111,43 @@ const getListRole = (req,res) => {
       param_order = [column_sort,order];
     }
   
-    if(req.body.hasOwnProperty("search_company_name")){
+    if(req.body.hasOwnProperty("filter_is_active")){
       where_query = {
         ...where_query,
-        company_name: {
-          [Op.iLike]: '%'+req.body.search_company_name+'%'
-        }
+        is_active: req.body.filter_is_active
       }
     }
   
   
-    if(req.body.hasOwnProperty("search_role_id")){
+    if(req.body.hasOwnProperty("filter_role")){
       where_query = {
         ...where_query,
-          role_id: req.body.search_role_id
+          role_id: req.body.filter_role
+      }
+    }
+
+    if(req.body.hasOwnProperty("search")){
+      if(req.body.search != ""){
+          where_query = {
+              ...where_query,
+              [Op.or]: [
+                {
+                    name: {
+                        [Op.iLike]: `%${req.body.search}%`
+                    }
+                },
+                {
+                  email: {
+                      [Op.iLike]: `%${req.body.search}%`
+                  }
+                },
+                {
+                    username: {
+                        [Op.iLike]: `%${req.body.search}%`
+                    }
+                }
+            ]
+          }
       }
     }
   
@@ -151,19 +177,26 @@ const getListRole = (req,res) => {
         raw:true
     })
     .then(result => {
-        if(result.count == 0){
-            res.status(200).send({
-                message:"No Data Found in Dealer",
-                data:result.rows,
-                total:result.count
-            })
-        }else{
-            res.status(200).send({
-                message:"Success",
-                data:result.rows,
-                total:result.count
-            })
-        }
+      const total_count = result.count; // Total number of items
+      const total_pages = Math.ceil(total_count / page_length)
+  
+      if (result.count === 0) {
+  
+        res.status(200).send({
+          message: "No Data Found in User",
+          data: result.rows,
+          payload: createPaginationNoData(page, total_pages, page_length, 0)
+        });
+      } else {
+        
+        res.status(200).send({
+          message: "Success",
+          data: result.rows,
+          payload: {
+            pagination: createPagination(page, total_pages, page_length, result.count)
+          }
+        });
+      }
     });
   };
   
@@ -177,6 +210,11 @@ const getListRole = (req,res) => {
               as : 'role',
               attributes: []
             },
+            {
+              model: UserDCAccess,
+              as: 'access',
+              attributes:['dc_id']
+            }
           ],
           attributes:[
             'id',
@@ -191,9 +229,17 @@ const getListRole = (req,res) => {
           ],
         where:{id:id}
     }).then(result=>{
+
+        const dcsArray = result.access.map(dc => dc.dc_id);
+
+        const formattedResult = {
+            ...result.get(), // Convert Sequelize model instance to a plain object
+            dcs: dcsArray // Assign the array of dc_id numbers
+        };
+        
         res.status(200).send({
             message:"Success",
-            data:result
+            data:formattedResult
         });
     })
   }
@@ -239,12 +285,59 @@ const getListRole = (req,res) => {
         role_id:req.body.role_id
       }
       
-      const dc = await Users.update(data,{
+      const user = await Users.update(data,{
         where:{
           id:req.body.id
         },
         transaction: t});
       
+      const result = await UserDCAccess.destroy({
+        where: {
+          user_id: req.body.id
+        }
+      });
+
+      if (result === 0) {
+        return {
+          is_ok: false,
+          message: 'No data found for User DC Access'
+        };
+      }
+
+      var dcAccess = []
+        for(let dc of req.body.dcs){
+          existDC = await DC.findOne({
+            where:{
+              id:dc,
+              is_active:true
+            },
+            transaction:t
+          });
+
+          if(!existDC){
+            await t.rollback(); 
+            return res.status(200).send({
+              is_ok:false,
+              message:"DC is not found"
+            });
+          }
+
+          dcAccess.push({
+            user_id:req.body.id,
+            company_id:existDC.company_id,
+            dc_id:existDC.id
+          });
+        }
+
+        if(dcAccess.length > 0){
+          await UserDCAccess.bulkCreate(dcAccess, {
+            validate: true,
+            ignoreDuplicates: true,
+            individualHooks: true,
+            transaction: t
+          });
+        }
+
       await t.commit();
       return res.status(200).send({
           is_ok:true,
@@ -301,6 +394,40 @@ const getListRole = (req,res) => {
         }
       
         const user = await Users.create(data,{transaction: t});
+        
+        var dcAccess = []
+        for(let dc of req.body.dcs){
+          existDC = await DC.findOne({
+            where:{
+              id:dc,
+              is_active:true
+            },
+            transaction:t
+          });
+
+          if(!existDC){
+            await t.rollback(); 
+            return res.status(200).send({
+              is_ok:false,
+              message:"DC is not found"
+            });
+          }
+
+          dcAccess.push({
+            user_id:user.id,
+            company_id:existDC.company_id,
+            dc_id:existDC.id
+          });
+        }
+
+        if(dcAccess.length > 0){
+          await UserDCAccess.bulkCreate(dcAccess, {
+            validate: true,
+            ignoreDuplicates: true,
+            individualHooks: true,
+            transaction: t
+          });
+        }
         
         await t.commit();
         return res.status(200).send({

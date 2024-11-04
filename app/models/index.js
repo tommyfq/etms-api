@@ -35,6 +35,11 @@ db.users.belongsTo(db.roles,{
     targetKey:"id"
 });
 
+db.roles.hasMany(db.users,{
+  foreignKey: 'role_id', 
+  as: 'roles' 
+});
+
 db.companies.belongsTo(db.users,{
     foreignKey:"default_agent_id",
     targetKey:"id"
