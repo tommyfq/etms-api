@@ -80,6 +80,11 @@ db.assets.belongsTo(db.items,{
   targetKey:"id"
 });
 
+db.items.hasMany(db.assets,{
+  as : "item",
+  foreignKey: "item_id"
+});
+
 db.user_dc_access.belongsTo(db.users,{
   foreignKey:"user_id",
   targetKey:"id"

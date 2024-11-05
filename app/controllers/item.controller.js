@@ -25,8 +25,8 @@ const list = (req,res) => {
   var column_sort = "id";
   var order = "asc"
 
-  if(req.body.hasOwnProperty("column_sort")){
-    column_sort = req.body.column_sort
+  if(req.body.hasOwnProperty("sort")){
+    column_sort = req.body.sort
   }
 
   if(req.body.hasOwnProperty("order")){
@@ -353,12 +353,6 @@ const updateOrCreate = async(i,row,t)=>{
       },
       transaction: t
     })
-
-    if(!existItems){
-      return {is_ok:false,message:"Item is not exist at row "+(i+1)}
-    }
-
-    console.log(row["Is Active"])
 
     var storeData = {
       brand:row["Brand"],

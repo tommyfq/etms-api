@@ -184,7 +184,7 @@ async function verifyToken(req, res){
                 role_name: user.role.role_name,
             }
 
-            return res.json({ data });
+            return res.json( data );
         } else {
             return res.status(404).json({ error: 'User not found' });
         }
