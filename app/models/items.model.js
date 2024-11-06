@@ -11,6 +11,9 @@ module.exports = (sequelize, Sequelize) => {
         model:{
             type:Sequelize.STRING(250)
         },
+        warranty_duration:{
+            type:Sequelize.INTEGER
+        },
         is_active: {
             type: Sequelize.BOOLEAN
         },

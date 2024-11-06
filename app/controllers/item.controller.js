@@ -66,6 +66,7 @@ const list = (req,res) => {
         'id',
         'brand',
         'model',
+        'warranty_duration',
         'createdAt',
         'updatedAt',
         'is_active'
@@ -107,6 +108,7 @@ const detail = (req,res) => {
         'id',
         'brand',
         'model',
+        'warranty_duration',
         'is_active',
         'createdAt',
         'updatedAt'
@@ -144,8 +146,10 @@ async function update (req,res) {
       var data = {
         brand:req.body.model,
         brand:req.body.brand,
-        is_active:req.body.is_active
+        is_active:req.body.is_active,
+        warranty_duration:req.body.warranty_duration
       }
+      
       console.log(data);
       
       await Items.update(data,{
@@ -190,6 +194,7 @@ async function create (req,res){
       var data = {
         brand:req.body.brand,
         model:req.body.model,
+        warranty_duration:req.body.warranty_duration,
         is_active:req.body.is_active
       }
       
@@ -340,6 +345,9 @@ const updateOrCreate = async(i,row,t)=>{
       return {is_ok:false,message:"DC Name is blank at row "+(i+1)}
     }
 
+    if(!row.hasOwnProperty('Warranty Duration')) {
+      return {is_ok:false,message:"Warranty Duration is blank at row "+(i+1)}
+    }
 
     if(!row.hasOwnProperty('Is Active')) {
       return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
@@ -357,10 +365,9 @@ const updateOrCreate = async(i,row,t)=>{
     var storeData = {
       brand:row["Brand"],
       model:row["Model"],
+      warranty_duration:row["Warranty Duration"],
       is_active:row["Is Active"] == 'TRUE' || row["Is Active"] == true ? true : false,
     }
-
-    console.log(storeData, existItems)
   
     if(existItems){
 
@@ -401,6 +408,7 @@ const download = async(req, res) => {
         'brand',
         'model',
         'is_active',
+        'warranty_duration'
         //[Sequelize.col('company.company_code'), 'company_code']
       ],
       // You can specify any options here if needed
@@ -413,6 +421,7 @@ const download = async(req, res) => {
       'Brand':item.brand,
       'Model': item.model, // Use the alias for dc_name
       'Is Active': item.is_active ? 'TRUE' : 'FALSE',
+      'Warranty Duration':item.warranty_duration
       }
     });
 
