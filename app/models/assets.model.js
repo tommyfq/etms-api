@@ -20,7 +20,10 @@ module.exports = (sequelize, Sequelize) => {
         waranty_status:{
             type: Sequelize.BOOLEAN
         },
-        waranty_date:{
+        delivery_date:{
+            type:Sequelize.DATE
+        },
+        warranty_expired:{
             type:Sequelize.DATE
         },
         item_id:{

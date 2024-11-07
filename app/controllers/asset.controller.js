@@ -100,7 +100,8 @@ const list = (req,res) => {
         'id',
         'serial_number',
         'waranty_status',
-        'waranty_date',
+        'warranty_expired',
+        'delivery_date',
         'createdAt',
         'updatedAt',
         'is_active',
@@ -125,9 +126,17 @@ const list = (req,res) => {
       });
     } else {
       
+      const formattedRows = result.rows.map((r) => {
+        return {
+          ...r,
+          delivery_date: r.delivery_date ? moment(r.delivery_date).format('YYYY-MM-DD') : "",
+          warranty_expired: r.warranty_expired ? moment(r.warranty_expired).format('YYYY-MM-DD') : ""
+        };
+      });
+      
       res.status(200).send({
         message: "Success",
-        data: result.rows,
+        data: formattedRows,
         payload: {
           pagination: createPagination(page, total_pages, page_length, result.count)
         }
@@ -153,8 +162,9 @@ const detail = (req,res) => {
         'dc_id',
         'store_id',
         'is_active',
+        'delivery_date',
         'waranty_status',
-        'waranty_date',
+        'warranty_expired',
         'createdAt',
         'updatedAt',
         [Sequelize.col('item.brand'), 'brand'],
@@ -165,7 +175,8 @@ const detail = (req,res) => {
       
     const formattedResult = {
       ...result.dataValues,
-      waranty_date: result.waranty_date ? moment(result.waranty_date).format('YYYY-MM-DD') : ""
+      delivery_date: result.delivery_date ? moment(result.delivery_date).format('YYYY-MM-DD') : "",
+      warranty_expired: result.warranty_expired ? moment(result.warranty_expired).format('YYYY-MM-DD') : ""
     }
 
     res.status(200).send({
@@ -216,6 +227,24 @@ async function update (req,res) {
     });
   }
 
+  const item = await Item.findOne({
+    where:{
+      id:req.body.item_id
+    }
+  })
+
+  if(!item){
+    return res.status(200).send({
+      is_ok:false,
+      message:"Brand & Model does not exist"
+    });
+  }
+  
+  const deliveryDate = req.body.delivery_date; // expecting format like 'YYYY-MM-DD'
+  const warrantyDuration = item.warranty_duration || 3;
+
+  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+
   const t = await sequelize.transaction();
   try{
       var data = {
@@ -224,7 +253,8 @@ async function update (req,res) {
         store_id:req.body.store_id,
         is_active:req.body.is_active,
         waranty_status: req.body.waranty_status,
-        waranty_date: req.body.waranty_date,
+        delivery_date: req.body.delivery_date,
+        warranty_expired: expirationDate,
         item_id: req.body.item_id
       }
       
@@ -290,6 +320,24 @@ async function create (req,res){
     });
   }
 
+  const item = await Item.findOne({
+    where:{
+      id:req.body.item_id
+    }
+  })
+
+  if(!item){
+    return res.status(200).send({
+      is_ok:false,
+      message:"Brand & Model does not exist"
+    });
+  }
+  
+  const deliveryDate = req.body.delivery_date; // expecting format like 'YYYY-MM-DD'
+  const warrantyDuration = item.warranty_duration || 3;
+
+  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+
   const t = await sequelize.transaction();
   try{
       var data = {
@@ -298,7 +346,8 @@ async function create (req,res){
         store_id:req.body.store_id,
         is_active:req.body.is_active,
         waranty_status: req.body.waranty_status,
-        waranty_date: req.body.waranty_date,
+        delivery_date: req.body.delivery_date,
+        warranty_expired: expirationDate,
         item_id: req.body.item_id
       }
       
@@ -425,10 +474,6 @@ const upload = async(req, res) => {
 } 
 
 const updateOrCreate = async(i,row,t)=>{
-
-  const millisecondsPerDay = 86400000;
-  const excelEpoch = new Date(Date.UTC(1900, 0, -1));
-
   try{
     /*
       No
@@ -440,7 +485,7 @@ const updateOrCreate = async(i,row,t)=>{
       DC Code	
       DC Name	
       Warranty Status	
-      Warranty Date	
+      Delivery Date	
       Is Active
     */
 
@@ -472,8 +517,12 @@ const updateOrCreate = async(i,row,t)=>{
       return {is_ok:false,message:"Warranty Status is blank at row "+(i+1)}
     }
 
-    if(!row.hasOwnProperty('Warranty Date')) {
-      return {is_ok:false,message:"Warranty Date is blank at row "+(i+1)}
+    if(!row.hasOwnProperty('Delivery Date')) {
+      return {is_ok:false,message:"Delivery Date is blank at row "+(i+1)}
+    }
+
+    if(row["Delivery Date"] == ""){
+      return {is_ok:false,message:"Delivery Date is blank at row "+(i+1)}
     }
 
     const existItems = await Item.findOne({
@@ -509,7 +558,31 @@ const updateOrCreate = async(i,row,t)=>{
     if(!existStore){
       return {is_ok:false,message:"Store Code is not exist at row "+(i+1)}
     }
+    
+    let deliveryDate = row["Delivery Date"];
 
+      if (typeof deliveryDate === 'number') {
+        // Convert Excel serial date to JavaScript date
+        deliveryDate = moment('1900-01-01').add(deliveryDate - 2, 'days').format('YYYY-MM-DD');
+      }else{
+        let deliveryDate = moment(row["Delivery Date"], 'YYYY-MM-DD', true);
+        if (!deliveryDate.isValid()) {
+          // If invalid, try parsing as 'MM/DD/YYYY'
+          deliveryDate = moment(deliveryDate, 'MM/DD/YYYY', true);
+        }
+
+        if (deliveryDate.isValid()) {
+          row["Delivery Date"] = deliveryDate.format('YYYY-MM-DD');
+        } else {
+          row["Delivery Date"] = null; // or handle invalid date cases here
+        }
+      }
+
+      // Convert to 'YYYY-MM-DD' format if valid
+    const warrantyDuration = existItems.warranty_duration || 3;
+  
+    const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+    
     const existAsset = await Asset.findOne({
       where:{
         serial_number:row["Serial Number"]
@@ -517,19 +590,22 @@ const updateOrCreate = async(i,row,t)=>{
       // You can specify any options here if needed
     });
 
-    const jsDate = new Date(excelEpoch.getTime() + row["Warranty Date"] * millisecondsPerDay);
-    const formattedDate = moment(jsDate).format('YYYY-MM-DD HH:mm:ss');
-
     var storeData = {
       item_id: existItems.id,
       dc_id: existDC.id,
       store_id: existStore.id,
       waranty_status: row["Warranty Status"] == "TRUE" || row["Warranty Status"] == true ? true : false,
-      waranty_date: formattedDate,
+      delivery_date: deliveryDate,
+      warranty_expired: expirationDate,
       is_active: row["Is Active"] == 'TRUE' || row["Is Active"] == true ? true : false,
     }
   
+    
     if(existAsset){
+
+      // if(!existAsset.delivery_date){
+      //   return {is_ok:false,message:"Existing delivery date is empty at row "+(i+1)}
+      // }
 
       let hasChanged = Object.keys(storeData).some(key => {
         // Ensure to handle the case where the key may not exist on existDC
@@ -537,29 +613,32 @@ const updateOrCreate = async(i,row,t)=>{
         const assetValue = existAsset[key];
 
         // If the key is 'warranty_date', compare the ISO strings
-        if (key === 'waranty_date') {
-          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD HH:mm:ss');
+        if (key === 'delivery_date') {
+          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD');
 
-          console.log(`Comparing warranty dates: ${storeValue} vs ${formateDateAsset}`);
+          console.log(`Comparing Delivery Dates: ${storeValue} vs ${formateDateAsset}`);
           return storeValue !== formateDateAsset;
-        } 
+        }
+        
+        if(key === 'warranty_expired'){
+          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD');
+          console.log(`Comparing Warranty Expired Dates: ${storeValue} vs ${formateDateAsset}`);
+          return storeValue !== formateDateAsset;
+        }
 
         // Otherwise, compare the values directly
         console.log(storeValue, assetValue, storeValue !== assetValue);
         return storeValue !== assetValue;
       });
-
-      console.log("===HAS CHANGED===")
-      console.log(hasChanged)
   
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes detected, update skipped.' };
+        return { is_ok:false, message: 'No changes data at row '+i };
       }
       
       await Asset.update(storeData,
         {
           where:{
-            id:existItems.id
+            id:existAsset.id
           },
           transaction:t
         }
@@ -602,26 +681,30 @@ const download = async(req, res) => {
         'serial_number',
         'is_active',
         'waranty_status',
-        'waranty_date'
+        'delivery_date',
+        'warranty_expired'
         //[Sequelize.col('company.company_code'), 'company_code']
       ],
       // You can specify any options here if needed
     });
 
     const formattedResult = result.map((item, index) => {
-
+      const deliveryDate = item.delivery_date ? moment(item.delivery_date).format('YYYY-MM-DD') : ""
+      const warrantyExpired = item.warranty_expired ? moment(item.warranty_expired).format('YYYY-MM-DD') : ""
+      
       return {
-      No: index + 1, // Incremental number
-      'Serial Number':item.serial_number,
-      'Brand':item.item?.brand ?? null,
-      'Model': item.item?.model ?? null, // Use the alias for dc_name
-      'Store Code': item.store.store_code,
-      'Store Name': item.store.store_name,
-      'DC Code': item.dc.dc_code,
-      'DC Name': item.dc.dc_name,
-      'Warranty Status': item.waranty_status,
-      'Warranty Date': item.waranty_date,
-      'Is Active': item.is_active,
+        No: index + 1, // Incremental number
+        'Serial Number':item.serial_number,
+        'Brand':item.item?.brand ?? null,
+        'Model': item.item?.model ?? null, // Use the alias for dc_name
+        'Store Code': item.store.store_code,
+        'Store Name': item.store.store_name,
+        'DC Code': item.dc.dc_code,
+        'DC Name': item.dc.dc_name,
+        'Warranty Status': item.waranty_status,
+        'Delivery Date': deliveryDate,
+        'Warranty Expired': warrantyExpired,
+        'Is Active': item.is_active,
       }
     });
 
