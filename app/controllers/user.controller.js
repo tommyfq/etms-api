@@ -278,10 +278,10 @@ const getListRole = (req,res) => {
     const t = await sequelize.transaction();
     try{
       var data = {
-        username:req.body.dc_name,
+        username:req.body.username,
         name:req.body.name,
         is_active:req.body.is_active,
-        email:req.body.address,
+        email:req.body.email,
         role_id:req.body.role_id
       }
       
