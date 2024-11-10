@@ -97,6 +97,7 @@ async function signin(req, res) {
         email: user.email,
         role_id: user.role.id,
         role_name: user.role.role_name,
+        dcs: user.access.map((a)=>(a.dc_id))
       }
   
       //Checks user isHO
@@ -182,6 +183,7 @@ async function verifyToken(req, res){
                 email: user.email,
                 role_id: user.role.id,
                 role_name: user.role.role_name,
+                dcs: user.access.map((a)=>(a.dc_id))
             }
 
             return res.json( data );

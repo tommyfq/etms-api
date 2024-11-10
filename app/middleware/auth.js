@@ -33,6 +33,7 @@ verifyToken = (req, res, next) => {
       req.email = decoded.email;
       req.role_id = decoded.role_id;
       req.role_name = decoded.role_name;
+      req.dcs = decoded.dcs;
       // console.log(decoded);
       next();
     });

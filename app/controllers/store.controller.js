@@ -100,6 +100,15 @@ const list = (req,res) => {
     }
   }
 
+  if(req.dcs.length > 0){
+    where_query = {
+      ...where_query,
+      dc_id : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
+
 
   Store.findAndCountAll({
       include: [

@@ -65,6 +65,15 @@ const list = (req,res) => {
     }
   }
 
+  if(req.dcs.length > 0){
+    where_query = {
+      ...where_query,
+      id : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
+
   DC.findAndCountAll({
       include: [
         { 
@@ -132,6 +141,7 @@ const detail = (req,res) => {
         'createdAt',
         'updatedAt',
         'company_id',
+        'dc_code',
         [Sequelize.col('company.company_name'), 'company_name']
       ],
       where:{id:id}

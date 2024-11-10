@@ -139,11 +139,16 @@ const list = (req,res) => {
     column_sort
     order
   */
+  console.log(req.dcs);
 
   var page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
   var order = "desc"
+
+  if(req.dcs.length > 0){
+    
+  }
 
   if(req.body.hasOwnProperty("sort")){
     column_sort = req.body.sort
@@ -176,15 +181,23 @@ const list = (req,res) => {
     }
   }
 
+  if(req.dcs.length > 0){
+    where_query = {
+      ...where_query,
+      '$asset.dc_id$': {
+        [Op.in] : req.dcs
+      }
+    }
+  }
 
   Ticket.findAndCountAll({
-    //   include: [
-    //     { 
-    //       model: DC, 
-    //       as : 'dc',
-    //       attributes: []
-    //     },
-    //   ],
+      include: [
+        { 
+          model: Asset, 
+          as : 'asset',
+          attributes: []
+        },
+      ],
       attributes:[
         'id',
         'ticket_no',

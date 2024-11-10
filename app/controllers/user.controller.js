@@ -294,18 +294,14 @@ const getListRole = (req,res) => {
       const result = await UserDCAccess.destroy({
         where: {
           user_id: req.body.id
-        }
+        },
+        transaction:t
       });
 
-      if (result === 0) {
-        return {
-          is_ok: false,
-          message: 'No data found for User DC Access'
-        };
-      }
-
+      console.log(req.body.dcs)
       var dcAccess = []
         for(let dc of req.body.dcs){
+          console.log(dc)
           existDC = await DC.findOne({
             where:{
               id:dc,
