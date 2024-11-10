@@ -29,9 +29,10 @@ verifyToken = (req, res, next) => {
         });
       }
       req.user_id = decoded.id;
-      req.role_name = decoded.role_name;
+      req.username = decoded.username;
       req.email = decoded.email;
       req.role_id = decoded.role_id;
+      req.role_name = decoded.role_name;
       // console.log(decoded);
       next();
     });

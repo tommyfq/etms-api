@@ -396,12 +396,18 @@ const listOption = (req,res) => {
       ],
       attributes:[
         ['id','asset_id'],
+        'serial_number',
         [Sequelize.col('item.brand'), 'brand'],
         [Sequelize.col('item.model'), 'model'],
         [Sequelize.col('store.store_name'), 'store_name'],
         [Sequelize.col('dc.dc_name'), 'dc_name']
       ],
-      where: where_query,
+      where: {
+        ...where_query,
+        id: {
+          [Op.notIn]: Sequelize.literal(`(SELECT asset_id FROM tickets where status in ('Open','In Progress','On Hold'))`) // Exclude assets that are in the tickets table
+        }
+      },
       order: param_order,
       raw:true
   })

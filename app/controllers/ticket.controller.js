@@ -7,6 +7,8 @@ const Item = db.items;
 const DC = db.dcs;
 const Store = db.stores;
 const TicketAttachment = db.tickets_attachment;
+const TicketLog = db.ticket_logs;
+const User = db.users;
 
 const Op = db.Sequelize.Op;
 const fs = require("fs");
@@ -49,6 +51,8 @@ async function create (req,res){
     console.log('Uploaded files:', req.files); // This will contain the uploaded files
 
     console.log(req.files);
+
+    console.log(req.body);
 
     var userId = req.user_id
     const existAsset = await Asset.findOne({
@@ -97,6 +101,15 @@ async function create (req,res){
           // Save attachments to TicketAttachment table
           await TicketAttachment.bulkCreate(attachments, { transaction: t });
       
+          var storeLog = {
+            ticket_id : newTicket.id,
+            asset_id: existAsset.id,
+            user_id: req.user_id,
+            status:req.body.status
+          }
+
+          await TicketLog.create(storeLog, {transaction:t})
+          
           await t.commit();
 
           return res.status(200).json({
@@ -129,7 +142,7 @@ const list = (req,res) => {
   var page = req.body.page;
   var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
-  var order = "asc"
+  var order = "desc"
 
   if(req.body.hasOwnProperty("sort")){
     column_sort = req.body.sort
@@ -329,7 +342,7 @@ const detail = (req,res) => {
                 attributes: [
                     'store_name' // Include store name
                 ]
-            },
+            }
           ]
         },
         {
@@ -338,7 +351,27 @@ const detail = (req,res) => {
           attributes: [
             [sequelize.fn('CONCAT', baseUrl, sequelize.col('url')), 'full_url'], // Concatenate base URL with attachment URL
           ],
-        }
+        },
+        {
+          model:TicketLog,
+          as: "ticket_logs",
+          required: false,
+          include:[
+            {
+              model:User,
+                as: "user",
+                attributes: [
+                    'username', 
+                    'email'
+                ]
+            }
+          ],
+          attributes: [
+              'status',
+              'createdAt',
+              'text'
+          ],
+        },
       ],
       attributes:[
         'id',
@@ -365,11 +398,16 @@ const detail = (req,res) => {
         [Sequelize.col('asset.dc.dc_name'), 'dc_name'],
         [Sequelize.col('asset.serial_number'), 'serial_number']
       ],
-      where:{id:id}
+      where:{id:id},
+      order: [[{ model: TicketLog, as: 'ticket_logs' }, 'createdAt', 'ASC']]
   }).then(result=>{
         const formattedResult = {
         ...result.dataValues,
-        due_date: result.due_date ? moment(result.due_date).format('YYYY-MM-DD') : ""
+        due_date: result.due_date ? moment(result.due_date).format('YYYY-MM-DD') : "",
+        ticket_logs: result.ticket_logs.map(log => ({
+          ...log.dataValues,
+          createdAt: moment(log.createdAt).format('DD MMM YY, HH:mm:ss')
+        }))
       }
       console.log(formattedResult)
 
@@ -402,6 +440,7 @@ async function update (req,res) {
       var data = {
         status:req.body.status,
         on_hold:req.body.on_hold,
+        priority:req.body.priority
       }
       
       if(existTicket.comment_client != req.body.comment_client){
@@ -418,11 +457,87 @@ async function update (req,res) {
 
       console.log(data);
 
+      var storeLog = {
+        ticket_id : req.body.id,
+        asset_id: existTicket.asset_id,
+        user_id: req.user_id,
+        status:req.body.status,
+        text:now.format('DD MMM YY, HH:mm:ss')+" "+req.username+" has updated the ticket to "+req.body.status
+      }
+
+      if(req.body.hasOwnProperty("swap_asset_id")){
+        var existAsset = await Asset.findOne({
+          where:{
+            id:req.body.asset_id,
+            is_active: true
+          }
+        });
+
+        if(!existAsset){
+          await t.rollback();
+          return res.status(200).send({
+            is_ok:false,
+            message:"Exist asset is not found"
+          });
+        }
+
+        var swapAsset = await Asset.findOne({
+          where:{
+            id: req.body.swap_asset_id,
+            is_active: true
+          },
+          transaction:t
+        });
+
+        if(!swapAsset){
+          await t.rollback();
+          return res.status(200).send({
+            is_ok:false,
+            message:"Swap asset is not found"
+          });
+        }
+
+        //deactive old asset
+        await Asset.update({
+          is_active:false
+        },{
+          where:{
+            id:req.body.asset_id
+          },
+          transaction:t
+        });
+
+        //change swap asset to exist asset
+        await Asset.update({
+          dc_id:existAsset.dc_id,
+          store_id:existAsset.store_id
+        },{
+            where:{
+              id:req.body.swap_asset_id
+            },
+            transaction:t
+          }
+        )
+
+        //set swap asset
+        data["asset_id"] = req.body.swap_asset_id;
+        
+        //change text
+        storeLog.text += ", swap asset from "+existAsset.serial_number+" to "+swapAsset.serial_number
+
+      }
+
       await Ticket.update(data,{
         where:{
           id:req.body.id
         },
         transaction: t});
+
+      console.log(storeLog);
+
+      await TicketLog.create(storeLog,{
+        transaction:t
+      });
       
       await t.commit();
       return res.status(200).send({
