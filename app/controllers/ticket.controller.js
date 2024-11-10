@@ -16,6 +16,7 @@ const path = require("path");
 const reader = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const {storeImages} = require("../middleware/upload");
+const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
 async function generateTicketNumber() {
     // Use moment to get the current date in YYMMDD format
@@ -139,7 +140,7 @@ const list = (req,res) => {
     order
   */
 
-  var page = req.body.page;
+  var page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
   var order = "desc"
@@ -201,79 +202,28 @@ const list = (req,res) => {
   })
   .then(result => {
     
-      const total_pages = Math.ceil(result.count / page_length);
-      if (result.count === 0) {
+    const total_count = result.count; // Total number of items
+    const total_pages = Math.ceil(total_count / page_length)
 
-        res.status(200).send({
-          message: "No Data Found in Store",
-          data: result.rows,
-          payload: {
-            pagination: {
-              page: page,
-              first_page_url: "/?page=1",
-              from: 0,
-              last_page: total_pages,
-              links: [
-                { url: null, label: "&laquo; Previous", active: false, page: null },
-                { url: "/?page=1", label: "1", active: true, page: 1 },
-                { url: "/?page=2", label: "2", active: false, page: 2 }
-              ],
-              next_page_url: null,
-              items_per_page: page_length,
-              prev_page_url: null,
-              to: 0,
-              total: result.count
-            }
-          }
-        });
-      } else {
-        var links = []
-        if(page > 1){
-          links.push({
-            url: page > 1 ? `/?page=${page - 1}` : null, 
-            label: "&laquo; Previous", 
-            active: false, 
-            page: page - 1
-          })
+    if (result.count === 0) {
+
+      res.status(200).send({
+        message: "No Data Found in Company",
+        data: result.rows,
+        payload: createPaginationNoData(page, total_pages, page_length, 0)
+      });
+    } else {
+      console.log(page)
+      console.log(total_pages)
+      
+      res.status(200).send({
+        message: "Success",
+        data: result.rows,
+        payload: {
+          pagination: createPagination(page, total_pages, page_length, result.count)
         }
-
-        links.push(
-          ...Array.from({ length: total_pages }, (_, i) => ({
-            url: `/?page=${i + 1}`,
-            label: (i + 1).toString(),
-            active: page === i + 1,
-            page: i + 1,
-          }))
-        );
-
-        if(page < total_pages){
-          links.push({ 
-            url: page < total_pages ? `/?page=${page + 1}` : null, 
-            label: "Next &raquo;", 
-            active: false, 
-            page: (Number(page) + 1) 
-          })
-        }
-
-        res.status(200).send({
-          message: "Success",
-          data: result.rows,
-          payload: {
-            pagination: {
-              page: page,
-              first_page_url: "/?page=1",
-              from: (page - 1) * page_length + 1,
-              last_page: total_pages,
-              links: links,
-              next_page_url: page < total_pages ? `/?page=${page + 1}` : null,
-              items_per_page: page_length,
-              prev_page_url: page > 1 ? `/?page=${page - 1}` : null,
-              to: page * page_length,
-              total: result.count
-            }
-          }
-        });
-      }
+      });
+    }
   });
 };
 
