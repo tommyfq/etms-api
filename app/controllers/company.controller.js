@@ -227,7 +227,7 @@ async function create (req,res){
 
   const existCompanyCode = await Companies.findOne({
     where:{
-        company_name: {
+        company_code: {
           [Op.iLike]: req.body.company_code
         }
     }
