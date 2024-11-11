@@ -89,7 +89,8 @@ async function create (req,res){
             description: req.body.description,
             cc: req.body.cc,
             created_by: userId,
-            due_date: req.body.due_date
+            due_date: req.body.due_date,
+            customer_reference_no: req.body.customer_reference_no
           }
           console.log(storeTicket);
           const newTicket = await Ticket.create(storeTicket,{transaction: t});
@@ -355,6 +356,7 @@ const detail = (req,res) => {
         'description',
         'created_by',
         'asset_id',
+        'customer_reference_no',
         [Sequelize.col('asset.item.brand'), 'brand'],         // Include asset item's brand
         [Sequelize.col('asset.item.model'), 'model'],         // Include asset item's model
         [Sequelize.col('asset.store.store_name'), 'store_name'], // Include asset store's name

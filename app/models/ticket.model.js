@@ -29,6 +29,9 @@ module.exports = (sequelize, Sequelize) => {
         description: {
             type: Sequelize.STRING(4000)
         },
+        customer_reference_no:{
+            type: Sequelize.STRING(200)
+        },
         cc:{
             type:Sequelize.STRING(4000)
         },
