@@ -32,13 +32,13 @@ async function generateTicketNumber() {
       order: [['ticket_no', 'DESC']] // Get the most recent ticket
     });
   
-    let nextNumber = '000001'; // Start at 000001 if no tickets exist for today
+    let nextNumber = '001'; // Start at 001 if no tickets exist for today
   
     if (lastTicket) {
       // Extract the last 6 digits (incrementing part)
-      const lastIncrement = parseInt(lastTicket.ticket_no.slice(-6), 10);
+      const lastIncrement = parseInt(lastTicket.ticket_no.slice(-3), 10);
       // Increment by 1 and pad with leading zeros
-      nextNumber = String(lastIncrement + 1).padStart(6, '0');
+      nextNumber = String(lastIncrement + 1).padStart(3, '0');
     }
   
     // Combine date prefix and next increment number
