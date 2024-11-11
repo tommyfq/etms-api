@@ -179,7 +179,7 @@ async function update (req,res) {
   const existCompanyCode = await Companies.findOne({
     where:{
         company_code: {
-          [Op.iLike]: '%'+req.body.company_code+'%'
+          [Op.iLike]: req.body.company_code
         },
         id: { 
           [Op.ne]: req.body.id 
@@ -228,7 +228,7 @@ async function create (req,res){
   const existCompanyCode = await Companies.findOne({
     where:{
         company_name: {
-          [Op.iLike]: '%'+req.body.company_code+'%'
+          [Op.iLike]: req.body.company_code
         }
     }
 });
