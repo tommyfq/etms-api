@@ -385,6 +385,15 @@ const listOption = (req,res) => {
   ];
   var where_query = {'is_active':true}
 
+  if(req.dcs.length > 0){
+    where_query = {
+      ...where_query,
+      dc_id : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
+
   Asset.findAll({
       include:[
         { 
