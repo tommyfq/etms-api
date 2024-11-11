@@ -144,8 +144,8 @@ async function update (req,res) {
   const t = await sequelize.transaction();
   try{
       var data = {
-        brand:req.body.model,
         brand:req.body.brand,
+        model:req.body.model,
         is_active:req.body.is_active,
         warranty_duration:req.body.warranty_duration
       }
