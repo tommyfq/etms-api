@@ -218,7 +218,9 @@ async function update (req,res) {
 
   const existStoreCode = await Store.findOne({
     where:{
-        store_code: req.body.store_code,
+        store_code: {
+          [Op.iLike] : req.body.dc_code
+        },
         id: { [Op.ne]: req.body.id }
     }
   });
@@ -294,7 +296,9 @@ async function create (req,res){
 
   const existStoreCOde = await Store.findOne({
     where:{
-        store_code: req.body.store_code
+        store_code: {
+          [Op.iLike] : req.body.dc_code
+        }
     }
 });
 
@@ -405,6 +409,23 @@ const upload = async(req, res) => {
     // {
       let temp = xlsx.utils.sheet_to_json(file.Sheets['store'])
       
+      if(temp.length > 200){
+        fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
+          if (err) throw err;
+        
+          for (const file of files) {
+            fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
+              if (err) throw err;
+            });
+          }
+        });
+  
+        return res.status(200).send({
+          is_ok: false,
+          message: "Maximum upload limit is 200 rows."
+        });
+      }
+
       for(let j = 0; j < temp.length; j++){
         //console.log(temp)
         var resp = null;

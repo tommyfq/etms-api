@@ -126,8 +126,10 @@ const detail = (req,res) => {
 async function update (req,res) {
     const existItem = await Items.findOne({
         where:{
-            brand: req.body.brand,
-            model: req.body.model,
+          brand: req.body.brand,
+          model: {
+            [Op.iLike] : req.body.model
+          },
             id: { [Op.ne]: req.body.id }
         }
     });
@@ -178,7 +180,9 @@ async function create (req,res){
   const existItem = await Items.findOne({
       where:{
           brand: req.body.brand,
-          model: req.body.model
+          model: {
+            [Op.iLike] : req.body.model
+          }
       }
   });
 
@@ -299,11 +303,26 @@ const upload = async(req, res) => {
     const t = await sequelize.transaction();
   
       let temp = xlsx.utils.sheet_to_json(file.Sheets['item'])
-      
-      for(let j = 0; j < temp.length; j++){
-        var resp = null;
-        resp = await updateOrCreate(j,temp[j],t);
+      if(temp.length > 100){
+        fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
+          if (err) throw err;
+        
+          for (const file of files) {
+            fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
+              if (err) throw err;
+            });
+          }
+        });
 
+        return res.status(200).send({
+          is_ok: false,
+          message: "Maximum upload limit is 100 rows."
+        });
+      }
+
+      for(let j = 0; j < temp.length; j++){
+        console.log(temp[j]);
+        var resp = await updateOrCreate(j,temp[j],t);
         result.push(resp);
       }
     

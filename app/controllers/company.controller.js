@@ -51,32 +51,24 @@ const list = (req,res) => {
     }
   }
 
-
-  if(req.body.hasOwnProperty("search_agent_name")){
+  if(req.body.hasOwnProperty("search_company_name")){
     where_query = {
-        '$user.name$': {
-          [Op.iLike]: '%'+req.body.search_agent_name+'%'
-        }
+      company_code: {
+        [Op.iLike]: '%'+req.body.search_company_name+'%'
+      }
     }
   }
 
   Companies.findAndCountAll({
-      include: [
-        { 
-          model: Users, 
-          as : 'user',
-          attributes: []
-        },
-      ],
       attributes:[
         'id',
+        'company_code',
         'company_name',
         'contact_name',
         'contact_number',
         'createdAt',
         'updatedAt',
-        'is_active',
-        [Sequelize.col('user.name'), 'agent_name']
+        'is_active'
       ],
       where: where_query,
       offset: (page-1)*page_length,
