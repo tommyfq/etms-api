@@ -178,8 +178,12 @@ async function update (req,res) {
 
   const existCompanyCode = await Companies.findOne({
     where:{
-        company_code: req.body.company_code,
-        id: { [Op.ne]: req.body.id }
+        company_code: {
+          [Op.iLike]: '%'+req.body.company_code+'%'
+        },
+        id: { 
+          [Op.ne]: req.body.id 
+        }
     }
   });
 
@@ -223,7 +227,9 @@ async function create (req,res){
 
   const existCompanyCode = await Companies.findOne({
     where:{
-        company_name: req.body.company_code
+        company_name: {
+          [Op.iLike]: '%'+req.body.company_code+'%'
+        }
     }
 });
 
@@ -247,19 +253,6 @@ if(existCompanyCode){
       });
   }
 
-  const agentId = await Users.findOne({
-      where:{
-          id: req.body.default_agent_id
-      }
-  });
-
-  if(!agentId){
-      return res.status(200).send({
-          is_ok:false,
-          message:"User is not found"
-      });
-  }
-
   const t = await sequelize.transaction();
   try{
       var data = {
@@ -267,7 +260,6 @@ if(existCompanyCode){
         is_active:req.body.is_active,
         contact_name:req.body.contact_name,
         contact_number:req.body.contact_number,
-        default_agent_id:req.body.default_agent_id,
         company_code:req.body.company_code
       }
       

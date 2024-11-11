@@ -19,9 +19,6 @@ module.exports = (sequelize, Sequelize) => {
         },
         contact_number: {
             type: Sequelize.STRING(32)
-        },
-        default_agent_id: {
-            type: Sequelize.INTEGER
         }
     });
   
