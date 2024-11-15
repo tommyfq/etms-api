@@ -2,6 +2,7 @@ const moment = require('moment');
 const bcrypt = require('bcryptjs');
 var jwt = require("jsonwebtoken");
 const config = require("../../config/app.config");
+const email = require("../services/email.services")
 
 const db = require("../models");
 const User = db.users
@@ -196,7 +197,15 @@ async function verifyToken(req, res){
     }
 }
 
+async function testEmail(req, res){
+  var response = await email.sendEmail()
+  return res.status(200).send({
+    is_ok:true,
+    message:"Succesfully Send Email"
+  });
+}
   module.exports = {
     signin,
-    verifyToken
+    verifyToken,
+    testEmail
 }

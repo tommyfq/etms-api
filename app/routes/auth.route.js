@@ -12,4 +12,10 @@ module.exports = function(app) {
     [],
     controller.verifyToken
   );
+
+  app.get(
+    "/api/test-email",
+    [],
+    controller.testEmail
+  );
 }
