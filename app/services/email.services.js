@@ -8,6 +8,7 @@ app.use(express.json());
 
 //const sendEmail = async (to, subject, text, html) => {
 const sendEmail = async () => {
+  console.log("send email")
   try {
     // Create a transporter
     const transporter = nodemailer.createTransport({
@@ -19,7 +20,7 @@ const sendEmail = async () => {
         pass: config.stmp_pass, // Your email password
       },
     });
-    
+
     // Email options
     const mailOptions = {
         from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>', // Sender address
@@ -31,6 +32,7 @@ const sendEmail = async () => {
 
     // Send the email
     const info = await transporter.sendMail(mailOptions);
+    console.log(info)
     console.log('Email sent: ' + info.response);
     return info;
   } catch (error) {
