@@ -1,6 +1,8 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
 
+const config = require('../../config/app.config')
+
 const app = express();
 app.use(express.json());
 
@@ -9,15 +11,15 @@ const sendEmail = async () => {
   try {
     // Create a transporter
     const transporter = nodemailer.createTransport({
-      host: 'mail.epsindo.co.id', // Your SMTP server
-      port: 465, // SMTP port (SSL)
-      secure: true, // Use SSL
+      host: config.smtp_host, // Your SMTP server
+      port: config.smtp_port, // SMTP port (SSL)
+      secure: config.smtp_secure, // Use SSL
       auth: {
-        user: 'helpdesk@epsindo.co.id', // Your email username
-        pass: 'w]AQ3,9V2sT=', // Your email password
+        user: config.smtp_user, // Your email username
+        pass: config.stmp_pass, // Your email password
       },
     });
-
+    
     // Email options
     const mailOptions = {
         from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>', // Sender address
