@@ -17,6 +17,7 @@ module.exports = function(app) {
     require('./items.route')(app)
     require('./auth.route')(app)
     require('./ticket.route')(app)
+    require('./dashboard.route')(app)
     // Add more routes as needed
     // require('./another-routes-file')(app);
   };

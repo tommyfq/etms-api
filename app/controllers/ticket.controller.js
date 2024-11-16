@@ -128,7 +128,7 @@ async function create (req,res){
       } 
   }
 
-const list = (req,res) => {
+const list = async (req,res) => {
   /* search by dc name */
   /* search by company name */
 
@@ -143,13 +143,10 @@ const list = (req,res) => {
   console.log(req.dcs);
 
   var page = parseInt(req.body.page, 10);
-  var page_length = req.body.items_per_page; //default 20
+  var page_length = parseInt(req.body.items_per_page, 10); //default 20
   var column_sort = "id";
   var order = "desc"
 
-  if(req.dcs.length > 0){
-    
-  }
 
   if(req.body.hasOwnProperty("sort")){
     column_sort = req.body.sort
@@ -159,44 +156,97 @@ const list = (req,res) => {
     order = req.body.order
   }
 
-  var where_query = {};
-  
-  var param_order = [];
+  let where_query = `1 = 1`;
+  let params = [];
 
-  console.log(column_sort);
-  
-//   if(column_sort == 'dc_name'){
-//     param_order = ['dc','dc_name', order];
-//   }else{
-    param_order = [column_sort,order];
-  //}
+  if (req.dcs && req.dcs.length > 0) {
+    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+    where_query += ` AND "asset".dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+    params = [...params, ...req.dcs];
+  }
 
-  if(req.body.hasOwnProperty("filter_status")){
-    if(req.body.filter_status != ""){
-        where_query = {
-            ...where_query,
-            status: {
-                [Op.iLike]: '%'+req.body.filter_status+'%'
-            }
+  const countQuery = `
+  SELECT COUNT(*) AS total
+  FROM tickets AS ticket
+  LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
+  LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
+  WHERE ${where_query} 
+    AND "dc".is_active = true
+`;
+
+  const rawQuery = `
+    SELECT 
+      ticket.id,
+      ticket.ticket_no,
+      ticket.title,
+      ticket.priority,
+      ticket.status,
+      ticket."createdAt",
+      ticket.on_hold
+    FROM tickets AS ticket
+    LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
+    LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
+    WHERE ${where_query} 
+      AND "dc".is_active = true
+    ORDER BY ticket."${column_sort}" ${order}
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
+
+  try {
+    // Count query to get the total number of tickets
+    const countResult = await sequelize.query(countQuery, {
+      bind: params,
+      type: sequelize.QueryTypes.SELECT,
+    });
+    
+    // Get the total count from the query result
+    const totalTickets = countResult[0].total;
+  
+    params.push(page_length);  // Adding the limit (items per page)
+    params.push((page - 1) * page_length);
+
+    // Now execute the rawQuery to fetch the paginated data
+    const result = await sequelize.query(rawQuery, {
+      bind: params,
+      type: sequelize.QueryTypes.SELECT,
+    });
+  
+    const total_count = totalTickets; // Total number of items
+    const total_pages = Math.ceil(total_count / page_length)
+
+    if (result.length === 0) {
+
+      return res.status(200).send({
+        message: "No Data Found in Company",
+        data: result,
+        payload: createPaginationNoData(page, total_pages, page_length, 0)
+      });
+    } else {
+      console.log(page)
+      console.log(total_pages)
+      
+      return res.status(200).send({
+        message: "Success",
+        data: result,
+        payload: {
+          pagination: createPagination(page, total_pages, page_length, result.count)
         }
+      });
     }
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    return res.status(200).send({
+      message: "error",
+      data: error
+    });
+    
   }
-
-  if(req.dcs.length > 0){
-    where_query = {
-      ...where_query,
-      '$asset.dc_id$': {
-        [Op.in] : req.dcs
-      }
-    }
-  }
-
-  Ticket.findAndCountAll({
+  /*Ticket.findAndCountAll({
       include: [
         { 
           model: Asset, 
           as : 'asset',
-          attributes: []
+          attributes: [],
         },
       ],
       attributes:[
@@ -238,7 +288,7 @@ const list = (req,res) => {
         }
       });
     }
-  });
+  });*/
 };
 
 const detail = (req,res) => {
@@ -406,6 +456,14 @@ async function update (req,res) {
         status:req.body.status,
         on_hold:req.body.on_hold,
         priority:req.body.priority
+      }
+
+      if(req.body.status == "In Progress"){
+          data["in_progress_at"] = now
+      }
+
+      if(req.body.status == "Closed"){
+        data["closed_at"] = now
       }
       
       if(existTicket.comment_client != req.body.comment_client){

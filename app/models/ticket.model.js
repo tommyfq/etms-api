@@ -58,6 +58,12 @@ module.exports = (sequelize, Sequelize) => {
         },
         comment_internal_by:{
             type:Sequelize.STRING(200)
+        },
+        in_progress_at:{
+            type:Sequelize.DATE
+        },
+        closed_at:{
+            type:Sequelize.DATE
         }
     });
   
