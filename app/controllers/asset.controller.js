@@ -138,8 +138,8 @@ const list = (req,res) => {
       const formattedRows = result.rows.map((r) => {
         return {
           ...r,
-          delivery_date: r.delivery_date ? moment(r.delivery_date).format('YYYY-MM-DD') : "",
-          warranty_expired: r.warranty_expired ? moment(r.warranty_expired).format('YYYY-MM-DD') : ""
+          delivery_date: r.delivery_date ? moment(r.delivery_date).utcOffset(7).format('YYYY-MM-DD') : "",
+          warranty_expired: r.warranty_expired ? moment(r.warranty_expired).utcOffset(7).format('YYYY-MM-DD') : ""
         };
       });
       
@@ -184,8 +184,8 @@ const detail = (req,res) => {
       
     const formattedResult = {
       ...result.dataValues,
-      delivery_date: result.delivery_date ? moment(result.delivery_date).format('YYYY-MM-DD') : "",
-      warranty_expired: result.warranty_expired ? moment(result.warranty_expired).format('YYYY-MM-DD') : ""
+      delivery_date: result.delivery_date ? moment(result.delivery_date).utcOffset(7).format('YYYY-MM-DD') : "",
+      warranty_expired: result.warranty_expired ? moment(result.warranty_expired).utcOffset(7).format('YYYY-MM-DD') : ""
     }
 
     res.status(200).send({
@@ -254,7 +254,7 @@ async function update (req,res) {
   const deliveryDate = req.body.delivery_date; // expecting format like 'YYYY-MM-DD'
   const warrantyDuration = item.warranty_duration || 3;
 
-  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').utcOffset(7).format('YYYY-MM-DD');
 
   const t = await sequelize.transaction();
   try{
@@ -349,7 +349,7 @@ async function create (req,res){
   const deliveryDate = req.body.delivery_date; // expecting format like 'YYYY-MM-DD'
   const warrantyDuration = item.warranty_duration || 3;
 
-  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+  const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').utcOffset(7).format('YYYY-MM-DD');
 
   const t = await sequelize.transaction();
   try{
@@ -608,12 +608,12 @@ const updateOrCreate = async(i,row,t)=>{
 
       if (typeof deliveryDate === 'number') {
         // Convert Excel serial date to JavaScript date
-        deliveryDate = moment('1900-01-01').add(deliveryDate - 2, 'days').format('YYYY-MM-DD');
+        deliveryDate = moment('1900-01-01').add(deliveryDate - 2, 'days').utcOffset(7).format('YYYY-MM-DD');
       }else{
-        let deliveryDate = moment(row["Delivery Date"], 'YYYY-MM-DD', true);
+        let deliveryDate = moment(row["Delivery Date"], 'YYYY-MM-DD', true).utcOffset(7);
         if (!deliveryDate.isValid()) {
           // If invalid, try parsing as 'MM/DD/YYYY'
-          deliveryDate = moment(deliveryDate, 'MM/DD/YYYY', true);
+          deliveryDate = moment(deliveryDate, 'MM/DD/YYYY', true).utcOffset(7);
         }
 
         if (deliveryDate.isValid()) {
@@ -626,7 +626,7 @@ const updateOrCreate = async(i,row,t)=>{
       // Convert to 'YYYY-MM-DD' format if valid
     const warrantyDuration = existItems.warranty_duration || 3;
   
-    const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').format('YYYY-MM-DD');
+    const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').utcOffset(7).format('YYYY-MM-DD');
     
     const existAsset = await Asset.findOne({
       where:{
@@ -659,7 +659,7 @@ const updateOrCreate = async(i,row,t)=>{
 
         // If the key is 'warranty_date', compare the ISO strings
         if (key === 'delivery_date') {
-          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD');
+          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD').utcOffset(7);
 
           console.log(`Comparing Delivery Dates: ${storeValue} vs ${formateDateAsset}`);
           return storeValue !== formateDateAsset;
@@ -734,8 +734,8 @@ const download = async(req, res) => {
     });
 
     const formattedResult = result.map((item, index) => {
-      const deliveryDate = item.delivery_date ? moment(item.delivery_date).format('YYYY-MM-DD') : ""
-      const warrantyExpired = item.warranty_expired ? moment(item.warranty_expired).format('YYYY-MM-DD') : ""
+      const deliveryDate = item.delivery_date ? moment(item.delivery_date).utcOffset(7).format('YYYY-MM-DD') : ""
+      const warrantyExpired = item.warranty_expired ? moment(item.warranty_expired).utcOffset(7).format('YYYY-MM-DD') : ""
       
       return {
         No: index + 1, // Incremental number

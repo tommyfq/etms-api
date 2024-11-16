@@ -20,7 +20,7 @@ const { createPagination, createPaginationNoData } = require("../helpers/paginat
 
 async function generateTicketNumber() {
     // Use moment to get the current date in YYMMDD format
-    const datePrefix = moment().format('YYMMDD');
+    const datePrefix = moment().utcOffset(7).format('YYMMDD');
   
     // Get the last ticket number for today
     const lastTicket = await Ticket.findOne({
@@ -418,10 +418,10 @@ const detail = (req,res) => {
   }).then(result=>{
         const formattedResult = {
         ...result.dataValues,
-        due_date: result.due_date ? moment(result.due_date).format('YYYY-MM-DD') : "",
+        due_date: result.due_date ? moment(result.due_date).utcOffset(7).format('YYYY-MM-DD') : "",
         ticket_logs: result.ticket_logs.map(log => ({
           ...log.dataValues,
-          createdAt: moment(log.createdAt).format('DD MMM YY, HH:mm:ss')
+          createdAt: moment(log.createdAt).utcOffset(7).format('DD MMM YY, HH:mm:ss')
         }))
       }
       console.log(formattedResult)
@@ -435,7 +435,7 @@ const detail = (req,res) => {
 
 async function update (req,res) {
 
-  const now = moment();
+  const now = moment().utcOffset(7);
 
     const existTicket = await Ticket.findOne({
         where:{
