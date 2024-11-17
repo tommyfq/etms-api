@@ -65,6 +65,13 @@ const list = (req,res) => {
     }
   }
 
+  if(req.role_name != "admin"){
+    where_query = {
+      ...where_query,
+      is_active : true
+    }
+  }
+
   if(req.dcs.length > 0){
     where_query = {
       ...where_query,

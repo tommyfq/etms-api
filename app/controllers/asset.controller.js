@@ -11,7 +11,7 @@ const Op = db.Sequelize.Op;
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
-const list = (req,res) => {
+const list = async (req,res) => {
   /* search by company name */
   /* search by agent name */
 
@@ -25,133 +25,218 @@ const list = (req,res) => {
   */
   let page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
-  var column_sort = "id";
+  var column_sort = `assets.id`;
   var order = "asc"
 
+  console.log(req.body)
+
   if(req.body.hasOwnProperty("sort")){
-    column_sort = req.body.sort
+    
+    if(req.body.sort == 'dc_name'){
+      column_sort = `dcs.dc_name`
+    }else if(req.body.sort == 'store_name'){
+      column_sort = `stores.store_name`
+    }else{
+      column_sort = `assets.${req.body.sort}`
+    }
+
   }
 
   if(req.body.hasOwnProperty("order")){
     order = req.body.order
   }
 
-  var where_query = {};
-  
-  var param_order = [];
+  //var where_query = {};
 
   
-  if(column_sort == 'dc'){
-    param_order = ['dc','name', order];
-  }else if(column_sort == 'store'){
-    param_order = ['store','name', order];
-  }else{
-    param_order = [column_sort,order];
+  
+
+  // if(req.body.hasOwnProperty("search_serial_number")){
+  //   if(req.body.search_serial_number){
+  //     where_query = {
+  //       ...where_query,
+  //       serial_number: {
+  //         [Op.iLike]: '%'+req.body.search_serial_number+'%'
+  //       }
+  //     }
+  //   }
+  // }
+
+
+  // if(req.body.hasOwnProperty("search_dc_name")){
+  //   if(req.body.search_dc_name != ""){
+  //     where_query = {
+  //       ...where_query,
+  //         '$dc.name$': {
+  //           [Op.iLike]: '%'+req.body.search_dc_name+'%'
+  //         }
+  //     }
+  //   }
+  // }
+
+  // if(req.body.hasOwnProperty("search_store_name")){
+  //   if(req.body.search_store_name != ""){
+  //     where_query = {
+  //       ...where_query,
+  //         '$store.name$': {
+  //           [Op.iLike]: '%'+req.body.search_store_name+'%'
+  //         }
+  //     }
+  //   }
+  // }
+
+  let where_query = `1 = 1`;
+  let params = [];
+
+  if (req.dcs && req.dcs.length > 0) {
+    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+    where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+    params = [...params, ...req.dcs];
   }
 
-  if(req.body.hasOwnProperty("search_serial_number")){
-    if(req.body.search_serial_number){
-      where_query = {
-        ...where_query,
-        serial_number: {
-          [Op.iLike]: '%'+req.body.search_serial_number+'%'
-        }
-      }
-    }
+  if(req.role_name != "admin"){
+    where_query += ` AND dcs.is_active = true`
   }
 
-
-  if(req.body.hasOwnProperty("search_dc_name")){
-    if(req.body.search_dc_name != ""){
-      where_query = {
-        ...where_query,
-          '$dc.name$': {
-            [Op.iLike]: '%'+req.body.search_dc_name+'%'
-          }
-      }
-    }
+  if (req.body.hasOwnProperty("search") && req.body.search) {
+    const searchParamIndex = params.length + 1;
+    const searchValue = `%${req.body.search}%`;
+  
+    where_query += ` AND (
+      items.brand ILIKE $${searchParamIndex} OR 
+      items.model ILIKE $${searchParamIndex} OR 
+      assets.serial_number ILIKE $${searchParamIndex} OR 
+      dcs.dc_name ILIKE $${searchParamIndex} OR
+      stores.store_name ILIKE $${searchParamIndex}
+      )`;
+    params.push(searchValue); // Bind the same search value for both brand and model
   }
 
-  if(req.body.hasOwnProperty("search_store_name")){
-    if(req.body.search_store_name != ""){
-      where_query = {
-        ...where_query,
-          '$store.name$': {
-            [Op.iLike]: '%'+req.body.search_store_name+'%'
-          }
-      }
-    }
-  }
+  const countQuery = `
+  SELECT COUNT(*) AS total
+  FROM assets
+  LEFT JOIN dcs ON assets.dc_id = dcs.id
+  LEFT JOIN stores ON stores.dc_id = dcs.id
+  LEFT JOIN items ON items.id = assets.item_id
+  WHERE ${where_query} 
+    AND dcs.is_active = true
+`;
 
-  if(req.dcs.length > 0){
-    where_query = {
-      ...where_query,
-      dc_id : {
-        [Op.in] : req.dcs
-      }
-    }
-  }
+  const rawQuery = `
+    SELECT 
+      assets.id,
+      assets.serial_number,
+      assets.waranty_status,
+      assets.warranty_expired,
+      assets.delivery_date,
+      assets."createdAt",
+      assets."updatedAt",
+      assets.is_active,
+      dcs.dc_name,
+      stores.store_name,
+      items.brand,
+      items.model
+    FROM assets
+    LEFT JOIN dcs ON assets.dc_id = dcs.id
+    LEFT JOIN stores ON stores.dc_id = dcs.id
+    LEFT JOIN items ON items.id = assets.item_id
+    WHERE ${where_query}
+    ORDER BY ${column_sort} ${order}
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
 
-  Asset.findAndCountAll({
-      include: [
-        { 
-          model: DC, 
-          as : 'dc',
-          attributes: []
-        },
-        { 
-            model: Store, 
-            as : 'store',
-            attributes: []
-          },
-      ],
-      attributes:[
-        'id',
-        'serial_number',
-        'waranty_status',
-        'warranty_expired',
-        'delivery_date',
-        'createdAt',
-        'updatedAt',
-        'is_active',
-        [Sequelize.col('dc.dc_name'), 'dc_name'],
-        [Sequelize.col('store.store_name'), 'store_name']
-      ],
-      where: where_query,
-      offset: (page-1)*page_length,
-      limit: page_length,
-      order: [param_order],
-      raw:true
-  })
-  .then(result => {
-    const total_count = result.count; // Total number of items
-    const total_pages = Math.ceil(total_count / page_length)
+  // Asset.findAndCountAll({
+  //     include: [
+  //       { 
+  //         model: DC, 
+  //         as : 'dc',
+  //         attributes: []
+  //       },
+  //       { 
+  //           model: Store, 
+  //           as : 'store',
+  //           attributes: []
+  //         },
+  //     ],
+  //     attributes:[
+  //       'id',
+  //       'serial_number',
+  //       'waranty_status',
+  //       'warranty_expired',
+  //       'delivery_date',
+  //       'createdAt',
+  //       'updatedAt',
+  //       'is_active',
+  //       [Sequelize.col('dc.dc_name'), 'dc_name'],
+  //       [Sequelize.col('store.store_name'), 'store_name']
+  //     ],
+  //     where: where_query,
+  //     offset: (page-1)*page_length,
+  //     limit: page_length,
+  //     order: [param_order],
+  //     raw:true
+  // })
+  // .then(result => {
 
-    if (result.count === 0) {
-      res.status(200).send({
-        message: "No Data Found in Assets",
-        data: result.rows,
-        payload: createPaginationNoData(page, total_pages, page_length, 0)
+    try {
+      // Count query to get the total number of tickets
+      const countResult = await sequelize.query(countQuery, {
+        bind: params,
+        type: sequelize.QueryTypes.SELECT,
       });
-    } else {
       
-      const formattedRows = result.rows.map((r) => {
-        return {
-          ...r,
-          delivery_date: r.delivery_date ? moment(r.delivery_date).utcOffset(7).format('YYYY-MM-DD') : "",
-          warranty_expired: r.warranty_expired ? moment(r.warranty_expired).utcOffset(7).format('YYYY-MM-DD') : ""
-        };
+      // Get the total count from the query result
+      const totalRows = countResult[0].total;
+    
+      params.push(page_length);  // Adding the limit (items per page)
+      params.push((page - 1) * page_length);
+  
+      // Now execute the rawQuery to fetch the paginated data
+      const result = await sequelize.query(rawQuery, {
+        bind: params,
+        type: sequelize.QueryTypes.SELECT,
+      });
+    
+      const total_count = totalRows; // Total number of items
+      const total_pages = Math.ceil(total_count / page_length)
+  
+      if (result.length === 0) {
+        console.log(result);
+
+        return res.status(200).send({
+          message: "No Data Found in Company",
+          data: result,
+          payload: createPaginationNoData(page, total_pages, page_length, 0)
+        });
+      } else {
+        console.log(page)
+        console.log(total_pages)
+
+        const formattedRows = result.map((r) => {
+          return {
+            ...r,
+            delivery_date: r.delivery_date ? moment(r.delivery_date).utcOffset(7).format('YYYY-MM-DD') : "",
+            warranty_expired: r.warranty_expired ? moment(r.warranty_expired).utcOffset(7).format('YYYY-MM-DD') : ""
+          };
+        });
+        
+        return res.status(200).send({
+          message: "Success",
+          data: formattedRows,
+          payload: {
+            pagination: createPagination(page, total_pages, page_length, result.count)
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      return res.status(200).send({
+        message: "error",
+        data: error
       });
       
-      res.status(200).send({
-        message: "Success",
-        data: formattedRows,
-        payload: {
-          pagination: createPagination(page, total_pages, page_length, result.count)
-        }
-      });
     }
-  });
+  //});
 };
 
 const detail = (req,res) => {

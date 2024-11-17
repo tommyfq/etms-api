@@ -9,7 +9,7 @@ const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
-const list = (req,res) => {
+const list = async (req,res) => {
   /* search by dc name */
   /* search by company name */
 
@@ -24,7 +24,7 @@ const list = (req,res) => {
 
   let page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
-  var column_sort = "id";
+  var column_sort = "stores.id";
   var order = "asc"
 
   if(req.body.hasOwnProperty("sort")){
@@ -35,136 +35,206 @@ const list = (req,res) => {
     order = req.body.order
   }
 
-  var where_query = {};
+  //var where_query = {};
   
   var param_order = [];
 
   console.log(column_sort);
   
-  if(column_sort == 'dc_name'){
-    param_order = ['dc','dc_name', order];
-  }else{
-    param_order = [column_sort,order];
-  }
-
-  if(req.body.hasOwnProperty("filter_dc")){
-    if(req.body.filter_dc != ""){
-        const arrDC = req.body.filter_dc.split(',').map(Number);
-        where_query = {
-            ...where_query,
-            id: {
-                [Op.in]: arrDC
-            }
-        }
+  if(req.body.hasOwnProperty("sort")){
+    if(req.body.sort == 'dc_name'){
+      column_sort = `dcs.dc_name`
+    }else if(req.body.sort == 'company_name'){
+      column_sort = `companies.company_name`
+    }else{
+      column_sort = `stores.${req.body.sort}`
     }
   }
 
-  if(req.body.hasOwnProperty("search_store_name")){
-    if(req.body.search_dc_name != ""){
-        where_query = {
-            ...where_query,
-            store_name: {
-                [Op.iLike]: '%'+req.body.search_store_name+'%'
-            }
-        }
-    }
+  // if(req.body.hasOwnProperty("filter_dc")){
+  //   if(req.body.filter_dc != ""){
+  //       const arrDC = req.body.filter_dc.split(',').map(Number);
+  //       where_query = {
+  //           ...where_query,
+  //           id: {
+  //               [Op.in]: arrDC
+  //           }
+  //       }
+  //   }
+  // }
+
+  // if(req.body.hasOwnProperty("search_store_name")){
+  //   if(req.body.search_dc_name != ""){
+  //       where_query = {
+  //           ...where_query,
+  //           store_name: {
+  //               [Op.iLike]: '%'+req.body.search_store_name+'%'
+  //           }
+  //       }
+  //   }
+  // }
+
+  // if(req.body.hasOwnProperty("search")){
+  //   if(req.body.search != ""){
+  //       where_query = {
+  //           ...where_query,
+  //           [Op.or]: [
+  //             {
+  //                 '$dc.dc_name$': {
+  //                     [Op.iLike]: `%${req.body.search}%`
+  //                 }
+  //             },
+  //             {
+  //                 '$dc.company.company_name$': {
+  //                     [Op.iLike]: `%${req.body.search}%`
+  //                 }
+  //             },
+  //             {
+  //               store_name: {
+  //                   [Op.iLike]: `%${req.body.search}%`
+  //               }
+  //             },
+  //             {
+  //               store_code: {
+  //                   [Op.iLike]: `%${req.body.search}%`
+  //               }
+  //             },
+  //         ]
+  //       }
+  //   }
+  // }
+
+  // if(req.dcs.length > 0){
+  //   where_query = {
+  //     ...where_query,
+  //     dc_id : {
+  //       [Op.in] : req.dcs
+  //     }
+  //   }
+  // }
+
+  // Store.findAndCountAll({
+  //     include: [
+  //       { 
+  //         model: DC, 
+  //         as : 'dc',
+  //         attributes: [],
+  //         include:[
+  //           {
+  //             model: Company, 
+  //             as : 'company',
+  //             attributes: [],
+  //           }
+  //         ]
+  //       },
+  //     ],
+  //     attributes:[
+  //       'id',
+  //       'store_code',
+  //       'store_name',
+  //       'address',
+  //       'createdAt',
+  //       'updatedAt',
+  //       'is_active',
+  //       [Sequelize.col('dc.dc_name'), 'dc_name'],
+  //       [Sequelize.col('dc.company.company_name'), 'company_name']
+  //     ],
+  //     where: where_query,
+  //     offset: (page-1)*page_length,
+  //     limit: page_length,
+  //     order: [param_order],
+  //     raw:true
+  // })
+  // .then(result => {
+
+  let where_query = `1 = 1`;
+  let params = [];
+
+  if (req.dcs && req.dcs.length > 0) {
+    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+    where_query += ` AND stores.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+    params = [...params, ...req.dcs];
   }
 
-  if(req.body.hasOwnProperty("search")){
-    if(req.body.search != ""){
-        where_query = {
-            ...where_query,
-            [Op.or]: [
-              {
-                  '$dc.dc_name$': {
-                      [Op.iLike]: `%${req.body.search}%`
-                  }
-              },
-              {
-                  '$dc.company.company_name$': {
-                      [Op.iLike]: `%${req.body.search}%`
-                  }
-              },
-              {
-                store_name: {
-                    [Op.iLike]: `%${req.body.search}%`
-                }
-              },
-              {
-                store_code: {
-                    [Op.iLike]: `%${req.body.search}%`
-                }
-              },
-          ]
-        }
-    }
+  if (req.body.hasOwnProperty("search") && req.body.search) {
+    const searchParamIndex = params.length + 1;
+    const searchValue = `%${req.body.search}%`;
+  
+    where_query += ` AND (
+      dcs.dc_name ILIKE $${searchParamIndex} OR 
+      stores.store_name ILIKE $${searchParamIndex} OR 
+      stores.store_code ILIKE $${searchParamIndex} OR 
+      companies.company_name ILIKE $${searchParamIndex}
+      )`;
+    params.push(searchValue); // Bind the same search value for both brand and model
   }
 
-  if(req.dcs.length > 0){
-    where_query = {
-      ...where_query,
-      dc_id : {
-        [Op.in] : req.dcs
-      }
-    }
-  }
+  const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM stores
+    LEFT JOIN dcs ON stores.dc_id = dcs.id
+    LEFT JOIN companies ON companies.id = dcs.company_id
+    WHERE ${where_query} 
+    AND dcs.is_active = true
+  `;
 
+  const rawQuery = `
+    SELECT 
+      stores.id,
+      stores.store_code,
+      stores.store_name,
+      stores.address,
+      stores."createdAt",
+      stores."updatedAt",
+      stores.is_active,
+      dcs.dc_name,
+      companies.company_name
+    FROM stores
+    LEFT JOIN dcs ON stores.dc_id = dcs.id
+    LEFT JOIN companies ON companies.id = dcs.company_id
+    WHERE ${where_query} 
+      AND dcs.is_active = true
+    ORDER BY ${column_sort} ${order}
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `;
 
-  Store.findAndCountAll({
-      include: [
-        { 
-          model: DC, 
-          as : 'dc',
-          attributes: [],
-          include:[
-            {
-              model: Company, 
-              as : 'company',
-              attributes: [],
-            }
-          ]
-        },
-      ],
-      attributes:[
-        'id',
-        'store_code',
-        'store_name',
-        'address',
-        'createdAt',
-        'updatedAt',
-        'is_active',
-        [Sequelize.col('dc.dc_name'), 'dc_name'],
-        [Sequelize.col('dc.company.company_name'), 'company_name']
-      ],
-      where: where_query,
-      offset: (page-1)*page_length,
-      limit: page_length,
-      order: [param_order],
-      raw:true
-  })
-  .then(result => {
-    
-    const total_count = result.count; // Total number of items
-    const total_pages = Math.ceil(total_count / page_length)
-
-    if (result.count === 0) {
-
-      res.status(200).send({
-        message: "No Data Found in Store",
-        data: result.rows,
-        payload: createPaginationNoData(page, total_pages, page_length, 0)
-      });
-    } else {
-      
-      res.status(200).send({
-        message: "Success",
-        data: result.rows,
-        payload: {
-          pagination: createPagination(page, total_pages, page_length, result.count)
-        }
-      });
-    }
+  const countResult = await sequelize.query(countQuery, {
+    bind: params,
+    type: sequelize.QueryTypes.SELECT,
   });
+  
+  // Get the total count from the query result
+  const totalRows = countResult[0].total;
+
+  params.push(page_length);  // Adding the limit (items per page)
+  params.push((page - 1) * page_length);
+
+  // Now execute the rawQuery to fetch the paginated data
+  const result = await sequelize.query(rawQuery, {
+    bind: params,
+    type: sequelize.QueryTypes.SELECT,
+  });
+    
+  const total_count = totalRows; // Total number of items
+  const total_pages = Math.ceil(total_count / page_length)
+
+  if (result.count === 0) {
+
+    res.status(200).send({
+      message: "No Data Found in Store",
+      data: result,
+      payload: createPaginationNoData(page, total_pages, page_length, 0)
+    });
+  } else {
+    res.status(200).send({
+      message: "Success",
+      data: result,
+      payload: {
+        pagination: createPagination(page, total_pages, page_length, result.count)
+      }
+    });
+  }
+  //});
 };
 
 const detail = (req,res) => {

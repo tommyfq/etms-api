@@ -165,6 +165,10 @@ const list = async (req,res) => {
     params = [...params, ...req.dcs];
   }
 
+  if(req.role_name != "admin"){
+    where_query += ` AND dc.is_active = true`
+  }
+
   const countQuery = `
   SELECT COUNT(*) AS total
   FROM tickets AS ticket
@@ -186,8 +190,7 @@ const list = async (req,res) => {
     FROM tickets AS ticket
     LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
     LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
-    WHERE ${where_query} 
-      AND "dc".is_active = true
+    WHERE ${where_query}
     ORDER BY ticket."${column_sort}" ${order}
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
   `;
