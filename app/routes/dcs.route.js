@@ -27,7 +27,7 @@ module.exports = function(app) {
   );
 
   app.get(
-    "/api/dc/list-option",
+    "/api/dc/list-option/:company_id",
     [authJwt.verifyToken],
     controller.listOption
   );

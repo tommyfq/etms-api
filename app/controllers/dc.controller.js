@@ -313,6 +313,15 @@ const listOption = (req,res) => {
   var param_order = ['dc_name', "asc"];
   var where_query = {'is_active':true}
 
+  var company_id = req.params.company_id;
+
+  if(company_id != 0){
+    where_query = {
+      ...where_query,
+      company_id:company_id
+    }
+  }
+
   DC.findAll({
       attributes:[
         ['id','dc_id'],

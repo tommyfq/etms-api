@@ -12,7 +12,8 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.INTEGER
         },
         dc_id: {
-            type: Sequelize.INTEGER
+            type: Sequelize.INTEGER,
+            allowNull: true
         }
     });
   

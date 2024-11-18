@@ -35,8 +35,6 @@ async function signin(req, res) {
           );
       }
   
-      var data = {};
-  
       const user = await User.findOne(
         {
           include:[
@@ -92,13 +90,32 @@ async function signin(req, res) {
         });
       }
   
-      data = {
+      var data = {
         id: user.id,
         username: user.username,
         email: user.email,
         role_id: user.role.id,
         role_name: user.role.role_name,
-        dcs: user.access.map((a)=>(a.dc_id))
+        company_id: 0
+      }
+
+      if (user.access && user.access.length > 0) {
+        // Access the first item and its company_id
+        const firstCompanyId = user.access[0].company_id;
+        
+        data.company_id = firstCompanyId
+
+        if(user.role.role_name == "super_client"){
+          var dcs = await DC.findAll({
+            where:{
+              company_id:user.access[0].company_id
+            }
+          });
+          console.log(dcs);
+          data.dcs = dcs.map((a)=>(a.id))
+        }else{
+          data.dcs = user.access.map((a)=>(a.dc_id))
+        }
       }
   
       //Checks user isHO

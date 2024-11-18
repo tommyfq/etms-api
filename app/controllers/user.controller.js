@@ -213,7 +213,7 @@ const getListRole = (req,res) => {
             {
               model: UserDCAccess,
               as: 'access',
-              attributes:['dc_id']
+              attributes:['dc_id','company_id']
             }
           ],
           attributes:[
@@ -232,10 +232,14 @@ const getListRole = (req,res) => {
 
         const dcsArray = result.access.map(dc => dc.dc_id);
 
-        const formattedResult = {
+        let formattedResult = {
             ...result.get(), // Convert Sequelize model instance to a plain object
             dcs: dcsArray // Assign the array of dc_id numbers
         };
+
+        if(result.access.length > 0){
+          formattedResult["company_id"] = result.access[0].company_id
+        }
         
         res.status(200).send({
             message:"Success",
@@ -245,7 +249,7 @@ const getListRole = (req,res) => {
   }
   
   async function update (req,res) {
-  
+
     const existEmail = await Users.findOne({
         where:{
             email: req.body.email,
@@ -320,8 +324,17 @@ const getListRole = (req,res) => {
 
           dcAccess.push({
             user_id:req.body.id,
-            company_id:existDC.company_id,
+            company_id:req.body.company_id,
             dc_id:existDC.id
+          });
+        }
+
+        if(req.body.role_id = 4){
+
+          dcAccess.push({
+            user_id:req.body.id,
+            company_id:req.body.company_id,
+            dc_id:null
           });
         }
 
@@ -414,6 +427,13 @@ const getListRole = (req,res) => {
             company_id:existDC.company_id,
             dc_id:existDC.id
           });
+        }
+
+        if(req.role_name == "super_client"){
+          dcAccess.push({
+            user_id:user.id,
+            company_id:req.body.company_id,
+          })
         }
 
         if(dcAccess.length > 0){
