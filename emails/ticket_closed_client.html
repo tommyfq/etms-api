@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Ticket Closed</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #28a745;
+        }
+        .content p {
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ticket Closed</h1>
+        </div>
+        <div class="content">
+            <p>Dear [CLIENT_NAME],</p>
+            <p>We are pleased to inform you that the service ticket has been successfully resolved by the vendor. Below are the details:</p>
+            <p><strong>Ticket Number:</strong> [TICKET_NUMBER]</p>
+            <p><strong>Asset Name:</strong> [ASSET_NAME]</p>
+            <p><strong>Issue Reported:</strong> [ISSUE_DESCRIPTION]</p>
+            <p><strong>Closure Date:</strong> [CLOSURE_DATE]</p>
+            <p><strong>Resolution:</strong> The issue has been fixed and the asset is now fully functional.</p>
+            
+            <!-- Optional Section for Asset Swap -->
+            <p><strong>Asset Swap Information:</strong></p>
+            <p>
+                [IF_ASSET_SWAPPED: The original asset has been replaced with a new asset. Below are the details of the swapped asset:]
+            </p>
+            <ul>
+                <li><strong>New Asset Name:</strong> [NEW_ASSET_NAME]</li>
+                <li><strong>New Asset Serial Number:</strong> [NEW_ASSET_SERIAL]</li>
+                <li><strong>Reason for Swap:</strong> [SWAP_REASON]</li>
+            </ul>
+            
+            <p>If you have any questions or concerns about this resolution, feel free to contact us for further assistance.</p>
+            <a href="[SUPPORT_LINK]" class="button">Contact Support</a>
+        </div>
+        <div class="footer">
+            <p>Thank you for choosing our services.</p>
+            <p>&copy; [Your Company Name]. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

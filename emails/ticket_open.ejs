@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Ticket Notification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .header {
+      background: #007bff;
+      color: #ffffff;
+      padding: 20px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 20px;
+      line-height: 1.6;
+      color: #333333;
+    }
+    .content p {
+      margin: 10px 0;
+    }
+    .content .highlight {
+      font-weight: bold;
+      color: #007bff;
+    }
+    .footer {
+      background: #f0f0f0;
+      padding: 10px;
+      text-align: center;
+      font-size: 12px;
+      color: #666666;
+    }
+    .button {
+        display: inline-block;
+        padding: 10px 20px;
+        margin-top: 5px;
+        background-color: #4CAF50;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 5px;
+    }
+    .button:hover {
+        background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>New Ticket Notification</h1>
+    </div>
+    <div class="content">
+      <p>Hello <span class="highlight"><%= userName %></span>,</p>
+      <p>A new ticket has been <span class="highlight">Open</span>.</p>
+      <p><strong>Ticket Details:</strong></p>
+      <ul>
+        <li><strong>Ticket Number:</strong> <%= ticketNumber %></li>
+        <li><strong>Serial Number:</strong> <%= serialNumber %></li>
+        <li><strong>Product:</strong> <%= brand %> - <%= model %></li>
+        <li><strong>Description:</strong> <%= description %></li>
+        <li><strong>Request Date:</strong> <%= createdAt %></li>
+      </ul>
+      <p>We are working to address your request promptly. Please click the button below to view your ticket.</p>
+    <a href="<%= link %>" class="button">View Ticket</a>
+      <p>Please log in to the portal to view or take action on this ticket.</p>
+      <p>Thank you,<br>The Support Team</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated message. Please do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>

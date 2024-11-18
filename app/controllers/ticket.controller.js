@@ -8,6 +8,7 @@ const DC = db.dcs;
 const Store = db.stores;
 const TicketAttachment = db.tickets_attachment;
 const TicketLog = db.ticket_logs;
+const Company = db.ticket_logs;
 const User = db.users;
 
 const Op = db.Sequelize.Op;
@@ -17,6 +18,8 @@ const reader = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const {storeImages} = require("../middleware/upload");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+
+const {sendEmail} = require('../services/email.services')
 
 async function generateTicketNumber() {
     // Use moment to get the current date in YYMMDD format
@@ -48,6 +51,8 @@ async function generateTicketNumber() {
   }
 
 async function create (req,res){
+    const now = moment().utcOffset(7)
+    const dueDate = now.add(3, 'days');
     console.log('Request body:', req.body); // This should contain the fields sent in the form
     console.log('Uploaded files:', req.files); // This will contain the uploaded files
 
@@ -57,6 +62,18 @@ async function create (req,res){
 
     var userId = req.user_id
     const existAsset = await Asset.findOne({
+      include: [
+          { 
+            model: Item, 
+            as : 'item',
+            attributes:['brand','model'],
+          },
+          { 
+            model: DC, 
+            as : 'dc',
+            attributes:['company_id']
+          }
+        ],
         where:{
             id: req.body.asset_id
         }
@@ -89,7 +106,7 @@ async function create (req,res){
             description: req.body.description,
             cc: req.body.cc,
             created_by: userId,
-            due_date: req.body.due_date,
+            due_date: dueDate,
             customer_reference_no: req.body.customer_reference_no
           }
           console.log(storeTicket);
@@ -112,7 +129,45 @@ async function create (req,res){
 
           await TicketLog.create(storeLog, {transaction:t})
           
+          
+
+          //Send email
+          const query = `
+            SELECT u.username, u.email
+            FROM user_dc_accesses uda
+            LEFT JOIN users u ON uda.user_id = u.id
+            WHERE uda.dc_id = (SELECT dc_id FROM assets WHERE id = :asset_id)
+            OR uda.company_id = :company_id
+          `;
+
+          const replacements = { asset_id: existAsset.id, company_id: existAsset.dc.company_id };
+
+          // Execute the raw query
+          const result = await sequelize.query(query, {
+            replacements,
+            type: Sequelize.QueryTypes.SELECT,
+            transaction:t
+          });
+
           await t.commit();
+          
+          const emailPromises = result.map((r) => {
+
+            const templateData = {
+              userName: r.username,
+              ticketNumber: req.ticketNo,
+              serialNumber: existAsset.serial_number,
+              brand: existAsset.item.brand,
+              model: existAsset.item.model,
+              createdAt: now.format('DD MM YY HH:mm:ss'),
+              description: req.body.description,
+              link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list',
+            };
+
+            return sendEmail(r.email, 'New Ticket Notification', 'ticket_open.ejs', templateData);
+          });
+
+          await Promise.all(emailPromises);
 
           return res.status(200).json({
             is_ok: true,
@@ -175,7 +230,6 @@ const list = async (req,res) => {
   LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
   LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
   WHERE ${where_query} 
-    AND "dc".is_active = true
 `;
 
   const rawQuery = `

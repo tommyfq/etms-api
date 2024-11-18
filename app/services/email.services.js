@@ -1,5 +1,7 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
+const ejs = require('ejs');
+const path = require('path');
 
 const config = require('../../config/app.config')
 
@@ -7,7 +9,7 @@ const app = express();
 app.use(express.json());
 
 //const sendEmail = async (to, subject, text, html) => {
-const sendEmail = async () => {
+const sendEmail = async (to,subject,templateFile, templateData) => {
   console.log("send email")
   try {
     // Create a transporter
@@ -21,13 +23,18 @@ const sendEmail = async () => {
       },
     });
 
+    const html = await ejs.renderFile(
+      path.join(__basedir, 'emails', templateFile),
+      templateData
+    );
+
     // Email options
     const mailOptions = {
         from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>', // Sender address
-        to: 'tommyquiko@gmail.com', // Receiver email
-        subject: 'Test Email from EPSindo', // Subject line
-        text: 'This is a test email sent from EPSindo SMTP server.', // Plain text body
-        html: '<h1>This is a test email</h1><p>Sent from EPSindo SMTP server.</p>', // HTML body (optional)
+        to: to, // Receiver email
+        subject: subject, // Subject line
+        text: '', // Plain text body
+        html: html, // HTML body (optional)
       };
 
     // Send the email

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Due Date Reminder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #f39c12;
+        }
+        .content p {
+            margin: 10px 0;
+        }
+        .content .highlight {
+            font-weight: bold;
+            color: #e74c3c;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #3498db;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ticket Due Date Reminder</h1>
+        </div>
+        <div class="content">
+            <p>Dear [VENDOR_NAME],</p>
+            <p>This is a reminder that the following service ticket is still open, and the due date is approaching:</p>
+            <p><strong>Ticket Details:</strong></p>
+            <ul>
+                <li><strong>Ticket Number:</strong> [TICKET_NUMBER]</li>
+                <li><strong>Asset Name:</strong> [ASSET_NAME]</li>
+                <li><strong>Issue Description:</strong> [ISSUE_DESCRIPTION]</li>
+                <li><strong>Due Date:</strong> <span class="highlight">[DUE_DATE]</span></li>
+            </ul>
+            <p>Please ensure that the ticket is resolved before the due date to avoid any delays or escalation. If additional time or resources are required, please reach out to us as soon as possible.</p>
+            <a href="[TICKET_LINK]" class="button">View Ticket</a>
+        </div>
+        <div class="footer">
+            <p>Thank you for your attention to this matter.</p>
+            <p>&copy; [Your Company Name]. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

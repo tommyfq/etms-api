@@ -96,7 +96,8 @@ async function signin(req, res) {
         email: user.email,
         role_id: user.role.id,
         role_name: user.role.role_name,
-        company_id: 0
+        company_id: 0,
+        dcs:[]
       }
 
       if (user.access && user.access.length > 0) {
@@ -201,7 +202,7 @@ async function verifyToken(req, res){
                 email: user.email,
                 role_id: user.role.id,
                 role_name: user.role.role_name,
-                dcs: user.access.map((a)=>(a.dc_id))
+                dcs: user.access?.map((a) => a.dc_id) ?? []
             }
 
             return res.json( data );

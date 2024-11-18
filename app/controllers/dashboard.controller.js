@@ -38,7 +38,6 @@ const getTicketCountByStatus = async (req, res) => {
         LEFT JOIN assets on assets.id = tickets.asset_id
         LEFT JOIN dcs on dcs.id = assets.dc_id
         WHERE ${where_query}
-        AND dcs.is_active = true
         GROUP BY status
     `;
 

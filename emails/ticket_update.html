@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Update Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: #FF0000;
+        }
+        .content p {
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #FF0000;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ticket Update Notification</h1>
+        </div>
+        <div class="content">
+            <p>Dear [RECIPIENT_NAME],</p>
+            <p>This is to notify you that the service ticket has been updated. Below are the details:</p>
+            <p><strong>Ticket Number:</strong> [TICKET_NUMBER]</p>
+            <p><strong>Asset Name:</strong> [ASSET_NAME]</p>
+            <p><strong>Request Date:</strong> [REQUEST_DATE]</p>
+            <p><strong>Status:</strong> <span style="color: #FF0000;">[TICKET_STATUS]</span></p>
+            <p><strong>Reason:</strong> [STATUS_REASON]</p>
+            <p>If you have any questions or require further assistance, please contact us.</p>
+        </div>
+        <div class="footer">
+            <p>Thank you for your understanding and cooperation.</p>
+            <p>&copy; [Your Company Name]. All Rights Reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
