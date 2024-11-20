@@ -128,9 +128,6 @@ async function create (req,res){
           }
 
           await TicketLog.create(storeLog, {transaction:t})
-          
-          
-
           //Send email
           const query = `
             SELECT u.username, u.email
@@ -157,7 +154,7 @@ async function create (req,res){
               serialNumber: existAsset.serial_number,
               brand: existAsset.item.brand,
               model: existAsset.item.model,
-              createdAt: now.format('DD MM YY HH:mm:ss'),
+              createdAt: now.format('DD-MM-YY HH:mm:ss'),
               description: req.body.description,
               link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list',
             };
@@ -535,33 +532,67 @@ async function update (req,res) {
         data['comment_internal_by'] = req.email;
       }
 
-      console.log(data);
+      const existAsset = await Asset.findOne({
+        include: [
+            { 
+              model: Item, 
+              as : 'item',
+              attributes:['brand','model'],
+            },
+            { 
+              model: DC, 
+              as : 'dc',
+              attributes:['company_id']
+            }
+          ],
+          where:{
+              id: existTicket.asset_id
+          },
+          transaction:t
+      });
+    
+      if(!existAsset){
+          await t.rollback();
+          return res.status(200).send({
+              is_ok:false,
+              message:"Asset is not found"
+          });
+      }
+
+      var templateData = {
+        userName: "",
+        ticketNumber: existTicket.ticket_no,
+        serialNumber: existAsset.serial_number,
+        brand: existAsset.item.brand,
+        model: existAsset.item.model,
+        createdAt: now.format('DD MM YY HH:mm:ss'),
+        description: existTicket.description,
+        link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list',
+      };
+
+      var templateFile = "ticket_update.ejs"
 
       var storeLog = {
         ticket_id : req.body.id,
         asset_id: existTicket.asset_id,
         user_id: req.user_id,
         status:req.body.status,
-        text:now.format('DD MMM YY, HH:mm:ss')+" "+req.username+" has updated the ticket to "+req.body.status
+        text:now.format('DD-MM-YY, HH:mm:ss')+" "+req.username+" has updated the ticket to "+req.body.status
+      }
+
+      if(req.body.status == "Closed"){
+        templateFile = "ticket_closed_client.ejs";
       }
 
       if(req.body.hasOwnProperty("swap_asset_id")){
-        var existAsset = await Asset.findOne({
-          where:{
-            id:req.body.asset_id,
-            is_active: true
-          }
-        });
-
-        if(!existAsset){
-          await t.rollback();
-          return res.status(200).send({
-            is_ok:false,
-            message:"Exist asset is not found"
-          });
-        }
 
         var swapAsset = await Asset.findOne({
+          include:[
+            {
+              model:Item,
+              as:"item"
+            }
+          ],
           where:{
             id: req.body.swap_asset_id,
             is_active: true
@@ -569,8 +600,7 @@ async function update (req,res) {
           transaction:t
         });
 
-        if(!swapAsset){
-          await t.rollback();
+        if(!swapAsset){;
           return res.status(200).send({
             is_ok:false,
             message:"Swap asset is not found"
@@ -605,6 +635,12 @@ async function update (req,res) {
         //change text
         storeLog.text += ", swap asset from "+existAsset.serial_number+" to "+swapAsset.serial_number
 
+        templateFile = "ticket_closed_client_swap.ejs"
+
+        templateData["newSerialNumber"] = swapAsset.serial_number
+        templateData["newBrand"] = swapAsset.item.brand
+        templateData["newModel"] = swapAsset.item.model
+
       }
 
       await Ticket.update(data,{
@@ -617,9 +653,12 @@ async function update (req,res) {
 
       await TicketLog.create(storeLog,{
         transaction:t
-      });
+      });      
+
+      await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset)
       
       await t.commit();
+
       return res.status(200).send({
           is_ok:true,
           message:"Successfully saved"
@@ -832,6 +871,36 @@ const overview = async (req,res) => {
       message:"Internal server error"
     });
   }
+}
+
+const sendEmails = async (subject, templateData, templateFile, existAsset) => {
+  const query = `
+            SELECT u.username, u.email
+            FROM user_dc_accesses uda
+            LEFT JOIN users u ON uda.user_id = u.id
+            WHERE uda.dc_id = (SELECT dc_id FROM assets WHERE id = :asset_id)
+            OR uda.company_id = :company_id
+    `;
+
+    const replacements = { asset_id: existAsset.id, company_id: existAsset.dc.company_id };
+
+    // Execute the raw query
+    const result = await sequelize.query(query, {
+      replacements,
+      type: Sequelize.QueryTypes.SELECT,
+      transaction:t
+    });
+
+    await t.commit();
+    
+    const emailPromises = result.map((r) => {
+
+      templateDate.userName = r.username;
+
+      return sendEmail(r.email, subject, templateFile, templateData);
+    });
+
+    await Promise.all(emailPromises);
 }
 
 module.exports = {

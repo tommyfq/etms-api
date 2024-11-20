@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Ticket Notification</title>
+  <title>Ticket Update Notification</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -65,22 +65,27 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>New Ticket Notification</h1>
+      <h1>Ticket Closed</h1>
     </div>
     <div class="content">
       <p>Dear <span class="highlight"><%= userName %></span>,</p>
-      <p>A new ticket has been <span class="highlight">Open</span>.</p>
-      <p><strong>Ticket Details:</strong></p>
+      <p>We are pleased to inform you that the service ticket has been successfully resolved by the vendor. Below are the details:</p>
       <ul>
         <li><strong>Ticket Number:</strong> <%= ticketNumber %></li>
         <li><strong>Serial Number:</strong> <%= serialNumber %></li>
         <li><strong>Product:</strong> <%= brand %> - <%= model %></li>
         <li><strong>Description:</strong> <%= description %></li>
-        <li><strong>Request Date:</strong> <%= createdAt %></li>
+        <li><strong>Closure Date:</strong> <%= createdAt %></li>
+        <li><strong>Resolution:</strong> The issue has been fixed and the asset is now fully functional.</li>
       </ul>
-      <p>We are working to address your request promptly. Please click the button below to view your ticket.</p>
-    <a href="<%= link %>" class="button">View Ticket</a>
-      <p>Please log in to the portal to view or take action on this ticket.</p>
+      <p><span class="highlight">Note:</span> The asset associated with this ticket has been swapped by the vendor due to the need for a replacement. Below are the details of the new asset:</p>
+      <ul>
+        <li><strong>Swap Serial Number:</strong> <%= newSerialNumber %></li>
+        <li><strong>Swap Product:</strong> <%= newBrand %> - <%= newModel %></li>
+      </ul>
+      <p>If you have any questions or require further assistance, please contact us.</p>
+      <a href="<%= link %>" class="button">View Ticket</a>
+      <p>Please log in to the portal to view more details on this ticket.</p>
       <p>Thank you,<br>The Support Team</p>
     </div>
     <div class="footer">
