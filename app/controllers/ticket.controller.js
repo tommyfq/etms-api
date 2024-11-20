@@ -148,8 +148,6 @@ async function create (req,res){
             type: Sequelize.QueryTypes.SELECT,
             transaction:t
           });
-
-          await t.commit();
           
           const emailPromises = result.map((r) => {
 
@@ -168,6 +166,8 @@ async function create (req,res){
           });
 
           await Promise.all(emailPromises);
+
+          await t.commit();
 
           return res.status(200).json({
             is_ok: true,
