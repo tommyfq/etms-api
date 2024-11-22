@@ -519,18 +519,6 @@ async function update (req,res) {
       if(req.body.status == "Closed"){
         data["closed_at"] = now
       }
-      
-      if(existTicket.comment_client != req.body.comment_client){
-        data['comment_client'] = req.body.comment_client;
-        data['comment_client_date'] = now
-        data['comment_client_by'] = req.email;
-      }
-      
-      if(existTicket.comment_internal != req.body.comment_internal){
-        data['comment_internal'] = req.body.comment_client;
-        data['comment_internal_date'] = now
-        data['comment_internal_by'] = req.email;
-      }
 
       const existAsset = await Asset.findOne({
         include: [
@@ -578,6 +566,21 @@ async function update (req,res) {
         user_id: req.user_id,
         status:req.body.status,
         text:now.format('DD-MM-YY, HH:mm:ss')+" "+req.username+" has updated the ticket to "+req.body.status
+      }
+
+      if(existTicket.comment_client != req.body.comment_client){
+        console.log("MASUK")
+        data['comment_client'] = req.body.comment_client;
+        data['comment_client_date'] = now
+        data['comment_client_by'] = req.email;
+        storeLog.text = now.format('DD-MM-YY, HH:mm:ss')+" "+req.username+" has updated comment to client"
+      }
+      
+      if(existTicket.comment_internal != req.body.comment_internal){
+        data['comment_internal'] = req.body.comment_client;
+        data['comment_internal_date'] = now
+        data['comment_internal_by'] = req.email;
+        storeLog.text = now.format('DD-MM-YY, HH:mm:ss')+" "+req.username+" has updated comment to internal"
       }
 
       if(req.body.status == "Closed"){
@@ -655,7 +658,7 @@ async function update (req,res) {
         transaction:t
       });      
 
-      await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset)
+      await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset, t)
       
       await t.commit();
 
@@ -873,7 +876,7 @@ const overview = async (req,res) => {
   }
 }
 
-const sendEmails = async (subject, templateData, templateFile, existAsset) => {
+const sendEmails = async (subject, templateData, templateFile, existAsset, t) => {
   const query = `
             SELECT u.username, u.email
             FROM user_dc_accesses uda
@@ -890,12 +893,10 @@ const sendEmails = async (subject, templateData, templateFile, existAsset) => {
       type: Sequelize.QueryTypes.SELECT,
       transaction:t
     });
-
-    await t.commit();
     
     const emailPromises = result.map((r) => {
 
-      templateDate.userName = r.username;
+      templateData.userName = r.username;
 
       return sendEmail(r.email, subject, templateFile, templateData);
     });
