@@ -8,6 +8,7 @@ const path = require("path");
 const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const { validateHeaders } = require("../helpers/general")
 
 const list = (req,res) => {
   /* search by dc name */
@@ -393,6 +394,8 @@ const upload = async(req, res) => {
     
     const sheets = file.SheetNames
 
+    const sheet = file.Sheets[sheets[0]];
+
     var result = [];
     
     const t = await sequelize.transaction();
@@ -413,6 +416,25 @@ const upload = async(req, res) => {
       return res.status(200).send({
         is_ok: false,
         message: "Maximum upload limit is 100 rows."
+      });
+    }
+
+    if(temp.length < 1){
+      return res.status(200).send({
+        is_ok: false,
+        message: "The uploaded file is empty"
+      });
+    }
+
+    const requiredColumns = ["No","DC Code","DC Name","Address","Is Active","Company Code"]
+
+    const resValid = validateHeaders(sheet,requiredColumns)
+    console.log(resValid);
+
+    if(!resValid.isValid){
+      return res.status(200).send({
+        is_ok: false,
+        message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
       });
     }
 
@@ -469,6 +491,10 @@ const updateOrCreate = async(i,row,t)=>{
       return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
     }
 
+    if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
+      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+    }
+
     if(!row.hasOwnProperty('Company Code')) {
       return {is_ok:false,message:"Company Code is blank at row "+(i+1)}
     }
@@ -486,7 +512,7 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existDC = await DC.findOne({
       where:{
-        dc_code:row["DC Code"]
+        dc_code:where(fn('LOWER', col('brand')), fn('LOWER', row["DC Code"]))
       },
       transaction: t
     })
@@ -508,7 +534,19 @@ const updateOrCreate = async(i,row,t)=>{
       });
   
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes detected, update skipped.' };
+        return { is_ok:false, message: 'No changes data at row '+(i+1) };
+      }
+
+      const existDCName = await DC.findOne({
+        where:{
+          dc_code:where(fn('LOWER', col('dc_name')), fn('LOWER', row["DC Name"])),
+          id: { [Op.ne]: existDC.id}
+        },
+        transaction: t
+      })
+  
+      if(existDCName){
+        return {is_ok:false,message:"DC Name is already exist at row "+(i+1)}
       }
       
       await DC.update(storeData,
@@ -519,10 +557,21 @@ const updateOrCreate = async(i,row,t)=>{
           transaction:t
         }
       )
-      return {is_ok:true,message:`${storeData.dc_name} successfully update at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
+      const existDCName = await DC.findOne({
+        where:{
+          dc_code:where(fn('LOWER', col('dc_name')), fn('LOWER', row["DC Name"]))
+        },
+        transaction: t
+      })
+  
+      if(existDCName){
+        return {is_ok:false,message:"DC Name is already exist at row "+(i+1)}
+      }
+
       await DC.create(storeData,{transaction:t})
-      return {is_ok:true,message:`${storeData.dc_name} successfully insert at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
     }
   
   }catch(error){

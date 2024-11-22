@@ -8,6 +8,7 @@ const DC = db.dcs;
 const Store = db.stores;
 const Item = db.items;
 const Op = db.Sequelize.Op;
+const {fn,where,col} = db.Sequelize
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
@@ -113,21 +114,24 @@ const list = async (req,res) => {
   }
 
   const countQuery = `
-  SELECT COUNT(*) AS total
+  SELECT COUNT(DISTINCT assets.id) AS total
   FROM assets
   LEFT JOIN dcs ON assets.dc_id = dcs.id
-  LEFT JOIN stores ON stores.dc_id = dcs.id
+  LEFT JOIN stores ON assets.store_id = stores.dc_id
   LEFT JOIN items ON items.id = assets.item_id
   WHERE ${where_query} 
     AND dcs.is_active = true
 `;
 
   const rawQuery = `
-    SELECT 
+    SELECT DISTINCT
       assets.id,
       assets.serial_number,
-      assets.waranty_status,
       assets.warranty_expired,
+      CASE
+        WHEN assets.warranty_expired >= NOW() THEN true
+        ELSE false
+      END as warranty_status,
       assets.delivery_date,
       assets."createdAt",
       assets."updatedAt",
@@ -138,7 +142,7 @@ const list = async (req,res) => {
       items.model
     FROM assets
     LEFT JOIN dcs ON assets.dc_id = dcs.id
-    LEFT JOIN stores ON stores.dc_id = dcs.id
+    LEFT JOIN stores ON assets.store_id = stores.id
     LEFT JOIN items ON items.id = assets.item_id
     WHERE ${where_query}
     ORDER BY ${column_sort} ${order}
@@ -257,7 +261,15 @@ const detail = (req,res) => {
         'store_id',
         'is_active',
         'delivery_date',
-        'waranty_status',
+        [
+          Sequelize.literal(`
+            CASE
+              WHEN assets.warranty_expired >= NOW() THEN true
+              ELSE false
+            END
+          `),
+          'warranty_status'
+        ],
         'warranty_expired',
         'createdAt',
         'updatedAt',
@@ -309,9 +321,7 @@ async function update (req,res) {
 
   const existSerialNumber = await Asset.findOne({
     where:{
-      serial_number: {
-        [Op.iLike]: req.body.serial_number
-      },
+      serial_number: where(fn('LOWER', col('serial_number')), fn('LOWER', req.body.serial_number)),
       id: { [Op.ne]: req.body.id }
     }
   });
@@ -405,9 +415,7 @@ async function create (req,res){
 
   const existSerialNumber = await Asset.findOne({
     where:{
-      serial_number: {
-        [Op.iLike]: req.body.serial_number
-      }
+      serial_number: where(fn('LOWER', col('serial_number')), fn('LOWER', req.body.serial_number)),
     }
   });
 
@@ -552,6 +560,25 @@ const upload = async(req, res) => {
   
     let temp = xlsx.utils.sheet_to_json(file.Sheets['asset'])
     
+    if(temp.length < 1){
+      return res.status(200).send({
+        is_ok: false,
+        message: "The uploaded file is empty"
+      });
+    }
+
+    const requiredColumns = ["No","Serial Number","Brand","Model","Store Code","DC Code","Delivery Date","Is Active"]
+
+    const resValid = validateHeaders(sheet,requiredColumns)
+    console.log(resValid);
+
+    if(!resValid.isValid){
+      return res.status(200).send({
+        is_ok: false,
+        message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
+      });
+    }
+
     if(temp.length > 100){
       fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
         if (err) throw err;
@@ -628,11 +655,15 @@ const updateOrCreate = async(i,row,t)=>{
     }
 
     if(!row.hasOwnProperty('Model')) {
-      return {is_ok:false,message:"DC Name is blank at row "+(i+1)}
+      return {is_ok:false,message:"Model is blank at row "+(i+1)}
     }
 
     if(!row.hasOwnProperty('Is Active')) {
       return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
+    }
+
+    if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
+      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
     }
 
     if(!row.hasOwnProperty('Store Code')) {
@@ -641,10 +672,6 @@ const updateOrCreate = async(i,row,t)=>{
 
     if(!row.hasOwnProperty('DC Code')) {
       return {is_ok:false,message:"DC Code is blank at row "+(i+1)}
-    }
-
-    if(!row.hasOwnProperty('Warranty Status')) {
-      return {is_ok:false,message:"Warranty Status is blank at row "+(i+1)}
     }
 
     if(!row.hasOwnProperty('Delivery Date')) {
@@ -657,36 +684,56 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existItems = await Item.findOne({
       where:{
-        brand:row["Brand"],
-        model:row["Model"]
+        brand:where(fn('LOWER', col('brand')), fn('LOWER', row["Brand"])),
+        model:where(fn('LOWER', col('model')), fn('LOWER', row["Model"])),
       },
       transaction: t
     })
 
     if(!existItems){
-      return {is_ok:false,message:"Item is not exist at row "+(i+1)}
+      return {is_ok:false,message:"Brand / Model does not exist at row "+(i+1)}
     }
 
-    const existDC = await DC.findOne({
-      where:{
-        dc_code:row["DC Code"]
-      },
+    // const existStore = await Store.findOne({
+    //   where:{
+    //     store_code:{
+    //       [Op.iLike]: row["Store Code"]
+    //     }
+    //   },
+    //   transaction: t
+    // })
+
+    const existStore = await Store.findOne({
+      where: where(fn('LOWER', col('store_code')),fn('LOWER', row["Store Code"])),
       transaction: t
-    })
+    });
+
+    if(!existStore){
+      return {is_ok:false,message:"Store Code is not exist at row "+(i+1)}
+    }
+
+    // const existDC = await DC.findOne({
+    //   where:{
+    //     dc_code:{
+    //       [Op.iLike]: row["DC Code"]
+    //     }
+    //   },
+    //   transaction: t
+    // })
+
+    const existDC = await DC.findOne({
+      where: where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"])),
+      transaction: t
+    });
 
     if(!existDC){
       return {is_ok:false,message:"DC Code is not exist at row "+(i+1)}
     }
 
-    const existStore = await Store.findOne({
-      where:{
-        store_code:row["Store Code"]
-      },
-      transaction: t
-    })
-
-    if(!existStore){
-      return {is_ok:false,message:"Store Code is not exist at row "+(i+1)}
+    console.log("===EXIST STORE, EXIST DC===")
+    console.log(existStore.dc_id, existDC.id)
+    if(existStore.dc_id != existDC.id){
+      return {is_ok:false,message:`${row["Store Code"]} is not under ${row["DC Code"]} at `+(i+1)}
     }
     
     let deliveryDate = row["Delivery Date"];
@@ -711,11 +758,15 @@ const updateOrCreate = async(i,row,t)=>{
       // Convert to 'YYYY-MM-DD' format if valid
     const warrantyDuration = existItems.warranty_duration || 3;
   
-    const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').utcOffset(7).format('YYYY-MM-DD');
+    const expirationDate = moment(deliveryDate).add(warrantyDuration, 'years').utcOffset(7);
+    const now = moment().utcOffset(7);
+    const warrantyStatus = now.isBefore(expirationDate)
     
     const existAsset = await Asset.findOne({
       where:{
-        serial_number:row["Serial Number"]
+        serial_number:{
+          [Op.iLike]: row["Serial Number"]
+        }
       },
       // You can specify any options here if needed
     });
@@ -724,9 +775,9 @@ const updateOrCreate = async(i,row,t)=>{
       item_id: existItems.id,
       dc_id: existDC.id,
       store_id: existStore.id,
-      waranty_status: row["Warranty Status"] == "TRUE" || row["Warranty Status"] == true ? true : false,
+      waranty_status: warrantyStatus,
       delivery_date: deliveryDate,
-      warranty_expired: expirationDate,
+      warranty_expired: expirationDate.format('YYYY-MM-DD'),
       is_active: row["Is Active"] == 'TRUE' || row["Is Active"] == true ? true : false,
     }
   
@@ -744,7 +795,7 @@ const updateOrCreate = async(i,row,t)=>{
 
         // If the key is 'warranty_date', compare the ISO strings
         if (key === 'delivery_date') {
-          const formateDateAsset = moment(assetValue).format('YYYY-MM-DD').utcOffset(7);
+          const formateDateAsset = moment(assetValue).utcOffset(7).format('YYYY-MM-DD');
 
           console.log(`Comparing Delivery Dates: ${storeValue} vs ${formateDateAsset}`);
           return storeValue !== formateDateAsset;
@@ -773,11 +824,11 @@ const updateOrCreate = async(i,row,t)=>{
           transaction:t
         }
       )
-      return {is_ok:true,message:`${row["Serial Number"]} successfully update at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
       storeData["serial_number"] = row["Serial Number"]
       await Asset.create(storeData,{transaction:t})
-      return {is_ok:true,message:`${storeData.serial_number} successfully insert at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
     }
   
   }catch(error){

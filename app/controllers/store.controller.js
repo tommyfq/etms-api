@@ -23,7 +23,7 @@ const list = async (req,res) => {
   */
 
   let page = parseInt(req.body.page, 10);
-  var page_length = req.body.items_per_page; //default 20
+  var page_length = parseInt(req.body.items_per_page); //default 20
   var column_sort = "stores.id";
   var order = "asc"
 
@@ -496,6 +496,25 @@ const upload = async(req, res) => {
         });
       }
 
+      if(temp.length < 1){
+        return res.status(200).send({
+          is_ok: false,
+          message: "The uploaded file is empty"
+        });
+      }
+
+      const requiredColumns = ["No","Store Code","Store Name","Address","Is Active","DC Code","Company Code"];
+
+      const resValid = validateHeaders(sheet,requiredColumns)
+      console.log(resValid);
+
+      if(!resValid.isValid){
+        return res.status(200).send({
+          is_ok: false,
+          message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
+        });
+      }
+
       for(let j = 0; j < temp.length; j++){
         //console.log(temp)
         var resp = null;
@@ -560,6 +579,10 @@ const updateOrCreateStore = async(i,row,t)=>{
 
   if(!row.hasOwnProperty('Is Active')) {
     return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
+  }
+
+  if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
+    return {is_ok:false,message:"Status is not valid at row "+(i+1)}
   }
 
   const existCompany = await Company.findOne({

@@ -5,6 +5,7 @@ const config = require("../../config/app.config");
 const email = require("../services/email.services")
 
 const db = require("../models");
+const {fn,where,col} = db.Sequelize
 const User = db.users
 const Company = db.companies
 const Role = db.roles
@@ -55,9 +56,7 @@ async function signin(req, res) {
               as:'role'
             }
           ],
-          where:{
-            username: username,
-          }
+          where:where(fn('LOWER', col('username')), fn('LOWER', req.body.username)),
         }
       );
   

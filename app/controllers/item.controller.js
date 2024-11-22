@@ -179,17 +179,15 @@ async function update (req,res) {
 async function create (req,res){
   const existItem = await Items.findOne({
       where:{
-          brand: req.body.brand,
-          model: {
-            [Op.iLike] : req.body.model
-          }
+          brand: where(fn('LOWER', col('brand')), fn('LOWER', req.body.brand)),
+          model: where(fn('LOWER', col('model')), fn('LOWER', req.body.model)),
       }
   });
 
   if(existItem){
       return res.status(200).send({
           is_ok:false,
-          message:"Data is already exist"
+          message:"Brand n Model is already exist"
       });
   }
 
@@ -320,6 +318,25 @@ const upload = async(req, res) => {
         });
       }
 
+      if(temp.length < 1){
+        return res.status(200).send({
+          is_ok: false,
+          message: "The uploaded file is empty"
+        });
+      }
+
+      const requiredColumns = ["No","Brand","Model","Is Active","Warranty Duration"]
+
+      const resValid = validateHeaders(sheet,requiredColumns)
+      console.log(resValid);
+
+      if(!resValid.isValid){
+        return res.status(200).send({
+          is_ok: false,
+          message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
+        });
+      }
+
       for(let j = 0; j < temp.length; j++){
         console.log(temp[j]);
         var resp = await updateOrCreate(j,temp[j],t);
@@ -361,7 +378,7 @@ const updateOrCreate = async(i,row,t)=>{
     }
 
     if(!row.hasOwnProperty('Model')) {
-      return {is_ok:false,message:"DC Name is blank at row "+(i+1)}
+      return {is_ok:false,message:"Model is blank at row "+(i+1)}
     }
 
     if(!row.hasOwnProperty('Warranty Duration')) {
@@ -372,11 +389,15 @@ const updateOrCreate = async(i,row,t)=>{
       return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
     }
 
+    if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
+      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+    }
+
 
     const existItems = await Items.findOne({
       where:{
-        brand:row["Brand"],
-        model:row["Model"]
+        brand:where(fn('LOWER', col('brand')), fn('LOWER', row["Brand"])),
+        model:where(fn('LOWER', col('brand')), fn('LOWER', row["Model"]))
       },
       transaction: t
     })
@@ -396,7 +417,7 @@ const updateOrCreate = async(i,row,t)=>{
       });
   
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes detected, update skipped.' };
+        return { is_ok:false, message: 'No changes data at row '+(i+1) };
       }
       
       await Items.update(storeData,
@@ -407,10 +428,10 @@ const updateOrCreate = async(i,row,t)=>{
           transaction:t
         }
       )
-      return {is_ok:true,message:`${storeData.brand} ${storeData.model} successfully update at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
       await Items.create(storeData,{transaction:t})
-      return {is_ok:true,message:`${storeData.brand} ${storeData.model} successfully insert at row ${(i+1)}`}
+      return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
     }
   
   }catch(error){

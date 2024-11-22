@@ -6,6 +6,7 @@ const UserDCAccess = db.user_dc_access;
 const DC = db.dcs
 const Roles = db.roles;
 const Op = db.Sequelize.Op;
+const {fn,where,col} = db.Sequelize
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
@@ -264,12 +265,15 @@ const getListRole = (req,res) => {
         });
     }
     
+
     const existUsername = await Users.findOne({
-        where:{
-            username: req.body.username,
-            id: { [Op.ne]: req.body.id }
-        }
-    });
+      where:{
+        [Op.and]:[
+          where(fn('LOWER', col('username')), fn('LOWER', req.body.username)),
+          {id: { [Op.ne]: req.body.id }}
+        ]
+      }
+  });
 
     if(existUsername){
         return res.status(200).send({
@@ -329,7 +333,7 @@ const getListRole = (req,res) => {
           });
         }
 
-        if(req.body.role_id = 4){
+        if(req.body.role_id == 4){
 
           dcAccess.push({
             user_id:req.body.id,
@@ -338,6 +342,8 @@ const getListRole = (req,res) => {
           });
         }
 
+        console.log(dcAccess);
+        console.log(dcAccess.length);
         if(dcAccess.length > 0){
           await UserDCAccess.bulkCreate(dcAccess, {
             validate: true,
@@ -377,9 +383,10 @@ const getListRole = (req,res) => {
     }
     
     const existUsername = await Users.findOne({
-        where:{
-            username: req.body.username
-        }
+        where:where(
+          fn('LOWER', col('username')), // Convert database column to lowercase
+          fn('LOWER', req.body.username) // Convert input to lowercase
+        )
     });
 
     if(existUsername){
