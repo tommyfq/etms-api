@@ -396,6 +396,15 @@ const upload = async(req, res) => {
     const file = xlsx.readFile(dir);
     
     const sheets = file.SheetNames
+    
+    const sheetExists = sheets.includes('dc');
+
+    if(!sheetExists){
+      return res.status(200).send({
+        is_ok: false,
+        message: `Missing 'dc' sheet in the uploaded file`
+      });
+    }
 
     const sheet = file.Sheets[sheets[0]];
 

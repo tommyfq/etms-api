@@ -555,6 +555,15 @@ const upload = async(req, res) => {
     
     const sheets = file.SheetNames
 
+    const sheetExists = sheets.includes('asset');
+
+    if(!sheetExists){
+      return res.status(200).send({
+        is_ok: false,
+        message: `Missing 'asset' sheet in the uploaded file`
+      });
+    }
+
     const sheet = file.Sheets[sheets[0]];
 
     var result = [];

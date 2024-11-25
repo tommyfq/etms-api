@@ -474,6 +474,15 @@ const upload = async(req, res) => {
     
     const sheets = file.SheetNames
 
+    const sheetExists = sheets.includes('store');
+
+    if(!sheetExists){
+      return res.status(200).send({
+        is_ok: false,
+        message: `Missing 'store' sheet in the uploaded file`
+      });
+    }
+
     var result = [];
 
     console.log(sheets)
@@ -511,6 +520,7 @@ const upload = async(req, res) => {
       const requiredColumns = ["No","Store Code","Store Name","Address","Is Active","DC Code","Company Code"];
 
       const resValid = validateHeaders(sheet,requiredColumns)
+      console.log("RES VALID");
       console.log(resValid);
 
       if(!resValid.isValid){
@@ -655,7 +665,7 @@ const updateOrCreateStore = async(i,row,t)=>{
       const existStoreName = await Store.findOne({
         where:{
           dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"])),
-          id: { [Op.ne]: existDC.id}
+          id: { [Op.ne]: existStore.id}
         },
         transaction: t
       })
