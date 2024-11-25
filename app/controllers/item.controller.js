@@ -5,8 +5,10 @@ const fs = require("fs");
 const db = require("../models");
 const Op = db.Sequelize.Op;
 const { sequelize, Sequelize } = require("../models");
+const {fn,where,col} = db.Sequelize
 const Items = db.items;
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const { validateHeaders } = require('../helpers/general')
 
 const list = (req,res) => {
   console.log("===ASSET_LIST===")
@@ -411,7 +413,7 @@ const updateOrCreate = async(i,row,t)=>{
     const existItems = await Items.findOne({
       where:{
         brand:where(fn('LOWER', col('brand')), fn('LOWER', row["Brand"])),
-        model:where(fn('LOWER', col('brand')), fn('LOWER', row["Model"]))
+        model:where(fn('LOWER', col('model')), fn('LOWER', row["Model"]))
       },
       transaction: t
     })
@@ -420,7 +422,7 @@ const updateOrCreate = async(i,row,t)=>{
       brand:row["Brand"],
       model:row["Model"],
       warranty_duration:row["Warranty Duration"],
-      is_active:row["Is Active"] == 'TRUE' || row["Is Active"] == true ? true : false,
+      is_active:row["Is Active"],
     }
   
     if(existItems){

@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
+const {fn,where,col} = db.Sequelize
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 const { validateHeaders } = require("../helpers/general")
 
@@ -524,7 +525,7 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existDC = await DC.findOne({
       where:{
-        dc_code:where(fn('LOWER', col('brand')), fn('LOWER', row["DC Code"]))
+        dc_code:where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"]))
       },
       transaction: t
     })

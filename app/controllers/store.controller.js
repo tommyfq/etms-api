@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
+const {fn,where,col} = db.Sequelize
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 const { validateHeaders } = require('../helpers/general')
 
@@ -157,6 +158,10 @@ const list = async (req,res) => {
     params = [...params, ...req.dcs];
   }
 
+  if(req.role_name != "admin"){
+    where_query += ` AND dcs.is_active = true`
+  }
+
   if (req.body.hasOwnProperty("search") && req.body.search) {
     const searchParamIndex = params.length + 1;
     const searchValue = `%${req.body.search}%`;
@@ -176,7 +181,6 @@ const list = async (req,res) => {
     LEFT JOIN dcs ON stores.dc_id = dcs.id
     LEFT JOIN companies ON companies.id = dcs.company_id
     WHERE ${where_query} 
-    AND dcs.is_active = true
   `;
 
   const rawQuery = `
@@ -194,7 +198,6 @@ const list = async (req,res) => {
     LEFT JOIN dcs ON stores.dc_id = dcs.id
     LEFT JOIN companies ON companies.id = dcs.company_id
     WHERE ${where_query} 
-      AND dcs.is_active = true
     ORDER BY ${column_sort} ${order}
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
   `;
@@ -598,10 +601,10 @@ const updateOrCreateStore = async(i,row,t)=>{
       row["Is Active"] = false;
     }
   }
-  
+
   const existCompany = await Company.findOne({
     where:{
-      company_code:row["Company Code"]
+      company_code:where(fn('LOWER', col('company_code')), fn('LOWER', row["Company Code"]))
     },
     transaction: t
   })
@@ -612,7 +615,7 @@ const updateOrCreateStore = async(i,row,t)=>{
 
   const existDC = await DC.findOne({
     where:{
-      dc_code:row["DC Code"]
+      dc_code:where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"]))
     },
     transaction: t
   })
@@ -624,7 +627,7 @@ const updateOrCreateStore = async(i,row,t)=>{
   
   const existStore = await Store.findOne({
     where:{
-      store_code:row["Store Code"]
+      store_code:where(fn('LOWER', col('store_code')), fn('LOWER', row["Store COde"]))
     },
     transaction:t
   })
@@ -633,7 +636,7 @@ const updateOrCreateStore = async(i,row,t)=>{
     dc_id:existDC.id,
     store_name:row["Store Name"],
     address:row["Address"],
-    is_active:row["Is Active"] == "TRUE" ? true : false,
+    is_active:row["Is Active"],
     store_code:row["Store Code"]
   }
 
@@ -649,6 +652,18 @@ const updateOrCreateStore = async(i,row,t)=>{
         return { is_ok:false, message: 'No changes detected at row '+(i+1) };
       }
 
+      const existStoreName = await Store.findOne({
+        where:{
+          dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"])),
+          id: { [Op.ne]: existDC.id}
+        },
+        transaction: t
+      })
+  
+      if(existStoreName){
+        return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
+      }
+
       await Store.update(storeData,
         {
           where:{
@@ -659,6 +674,17 @@ const updateOrCreateStore = async(i,row,t)=>{
       )
       return {is_ok:true,message:"Successfully update at row "+(i+1)}
     }else{
+      const existStoreName = await Store.findOne({
+        where:{
+          dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"]))
+        },
+        transaction: t
+      })
+  
+      if(existStoreName){
+        return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
+      }
+
       await Store.create(storeData,{transaction:t})
       return {is_ok:true,message:"Successfully insert at row "+(i+1)}
     }

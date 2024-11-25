@@ -120,7 +120,6 @@ const list = async (req,res) => {
   LEFT JOIN stores ON assets.store_id = stores.dc_id
   LEFT JOIN items ON items.id = assets.item_id
   WHERE ${where_query} 
-    AND dcs.is_active = true
 `;
 
   const rawQuery = `
