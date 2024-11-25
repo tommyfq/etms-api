@@ -383,6 +383,8 @@ const listStoreOption = (req,res) => {
 
 const upload = async(req, res) => {
   
+  const t = await sequelize.transaction();
+
   try{
     if (req.file == undefined) {
       return res.status(200).send({
@@ -397,8 +399,6 @@ const upload = async(req, res) => {
     const sheet = file.Sheets[sheets[0]];
 
     var result = [];
-    
-    const t = await sequelize.transaction();
   
     let temp = xlsx.utils.sheet_to_json(file.Sheets['dc'])
     
@@ -491,8 +491,20 @@ const updateOrCreate = async(i,row,t)=>{
       return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
     }
 
-    if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
-      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+    if(typeof row["Is Active"] === 'string'){
+
+      const value = row["Is Active"].toLowerCase();
+      if(!["true", "false"].includes(value)) {
+        return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+      }
+  
+      if(value == "true"){
+        row["Is Active"] = true;
+      }
+  
+      if(value == "false"){
+        row["Is Active"] = false;
+      }
     }
 
     if(!row.hasOwnProperty('Company Code')) {

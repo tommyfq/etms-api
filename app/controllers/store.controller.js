@@ -8,6 +8,7 @@ const path = require("path");
 const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const { validateHeaders } = require('../helpers/general')
 
 const list = async (req,res) => {
   /* search by dc name */
@@ -458,6 +459,7 @@ const listStoreOption = (req,res) => {
 
 const upload = async(req, res) => {
   
+  const t = await sequelize.transaction();
   try{
     if (req.file == undefined) {
       return res.status(200).send({
@@ -473,11 +475,11 @@ const upload = async(req, res) => {
 
     console.log(sheets)
     
-    const t = await sequelize.transaction();
   
     // for(let i = 0; i < sheets.length; i++)
     // {
       let temp = xlsx.utils.sheet_to_json(file.Sheets['store'])
+      let sheet = file.Sheets['store']
       
       if(temp.length > 200){
         fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
@@ -581,10 +583,22 @@ const updateOrCreateStore = async(i,row,t)=>{
     return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
   }
 
-  if(!["true", "false"].includes(row["Is Active"].toLowerCase())) {
-    return {is_ok:false,message:"Status is not valid at row "+(i+1)}
-  }
+  if(typeof row["Is Active"] === 'string'){
 
+    const value = row["Is Active"].toLowerCase();
+    if(!["true", "false"].includes(value)) {
+      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+    }
+
+    if(value == "true"){
+      row["Is Active"] = true;
+    }
+
+    if(value == "false"){
+      row["Is Active"] = false;
+    }
+  }
+  
   const existCompany = await Company.findOne({
     where:{
       company_code:row["Company Code"]
