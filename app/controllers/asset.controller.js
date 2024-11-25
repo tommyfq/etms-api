@@ -836,7 +836,7 @@ const updateOrCreate = async(i,row,t)=>{
       });
   
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes data at row '+i };
+        return { is_ok:false, message: 'No changes data at row '+(i+1) };
       }
       
       await Asset.update(storeData,

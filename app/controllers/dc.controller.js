@@ -543,7 +543,7 @@ const updateOrCreate = async(i,row,t)=>{
       company_id:existCompany.id,
       dc_name:row["DC Name"],
       dc_code:row["DC Code"],
-      is_active:row["Is Active"] == 'TRUE' ? true : false,
+      is_active:row["Is Active"],
       address:row["Address"]
     }
 
