@@ -8,9 +8,10 @@ const DC = db.dcs;
 const Store = db.stores;
 const Item = db.items;
 const Op = db.Sequelize.Op;
-const {fn,where,col} = db.Sequelize
 const { sequelize, Sequelize } = require("../models");
+const {fn,where,col} = db.Sequelize
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const {validateHeaders} = require("../helpers/general")
 
 const list = async (req,res) => {
   /* search by company name */
