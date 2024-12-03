@@ -555,6 +555,7 @@ async function update (req,res) {
         model: existAsset.item.model,
         createdAt: now.format('DD MM YY HH:mm:ss'),
         description: existTicket.description,
+        status: req.body.status,
         link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list',
       };
 
