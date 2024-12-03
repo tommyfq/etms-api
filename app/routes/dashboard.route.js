@@ -19,4 +19,10 @@ module.exports = function(app) {
     [authJwt.verifyToken],
     controller.getSlaTicketCounts
   );
+
+  app.post(
+    "/api/dashboard/list-repair-asset",
+    [authJwt.verifyToken],
+    controller.getListRepairAsset
+  );
 };
