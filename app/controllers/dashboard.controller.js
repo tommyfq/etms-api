@@ -263,6 +263,7 @@ const getListRepairAsset = async (req,res) => {
   var column_sort = `s.store_code`;
   var order = "asc"
   let params = [];
+  let where_query = `1 = 1`;
   
   if(req.body.hasOwnProperty("sort")){
     
@@ -294,7 +295,7 @@ const getListRepairAsset = async (req,res) => {
     params.push(searchValue); // Bind the same search value for both brand and model
   }
 
-  let where_query = `1 = 1`;
+  
 
   if (req.dcs && req.dcs.length > 0) {
 
