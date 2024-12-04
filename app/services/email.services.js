@@ -44,10 +44,25 @@ const sendEmail = async (to,subject,templateFile, templateData) => {
     return info;
   } catch (error) {
     console.error('Error sending email: ', error);
-    throw error;
+  }
+};
+
+const verifyEmail = async (email) => {
+  try {
+    await transporter.sendMail({
+      from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>',
+      to: email,
+      subject: "Test Email",
+      text: "Hello",
+    });
+    console.log("Email exists!");
+  } catch (error) {
+    console.log("Email does not exist or rejected: ", error);
+    throw new Error(`Email doest exist or rejected`);
   }
 };
 
 module.exports = {
-    sendEmail
+    sendEmail,
+    verifyEmail
 }

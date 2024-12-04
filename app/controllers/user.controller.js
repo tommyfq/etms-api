@@ -9,6 +9,7 @@ const Op = db.Sequelize.Op;
 const {fn,where,col} = db.Sequelize
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const {verifyEmail} = require('../services/email.services')
 
 async function hashPassword(plainPassword) {
     const saltRounds = 10; // You can increase the number of salt rounds for more security
@@ -396,8 +397,11 @@ const getListRole = (req,res) => {
         });
     }
 
-    const t = await sequelize.transaction();
-    // try{
+    try{
+      await verifyEmail(req.body.email)
+
+      const t = await sequelize.transaction();
+    
         var hashedPassword = await hashPassword(req.body.password)
         console.log(hashedPassword)
         var data = {
@@ -458,13 +462,13 @@ const getListRole = (req,res) => {
             message:"Successfully saved"
         });
 
-    // }catch(error){
-    //     await t.rollback();
-    //     return res.status(200).send({
-    //         is_ok:false,
-    //         message:error.toString()
-    //     });
-    // } 
+    }catch(error){
+        await t.rollback();
+        return res.status(200).send({
+            is_ok:false,
+            message:error.toString()
+        });
+    } 
   }
 
 module.exports = {
