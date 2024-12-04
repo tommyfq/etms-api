@@ -48,6 +48,16 @@ const sendEmail = async (to,subject,templateFile, templateData) => {
 };
 
 const verifyEmail = async (email) => {
+  const transporter = nodemailer.createTransport({
+    host: config.smtp_host, // Your SMTP server
+    port: config.smtp_port, // SMTP port (SSL)
+    secure: config.smtp_secure, // Use SSL
+    auth: {
+      user: config.smtp_user, // Your email username
+      pass: config.stmp_pass, // Your email password
+    },
+  });
+  
   try {
     await transporter.sendMail({
       from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>',
