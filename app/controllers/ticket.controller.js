@@ -578,7 +578,7 @@ async function update (req,res) {
       }
       
       if(existTicket.comment_internal != req.body.comment_internal){
-        data['comment_internal'] = req.body.comment_client;
+        data['comment_internal'] = req.body.comment_internal;
         data['comment_internal_date'] = now
         data['comment_internal_by'] = req.email;
         storeLog.text = now.format('DD-MM-YY, HH:mm:ss')+" "+req.username+" has updated comment to internal"
