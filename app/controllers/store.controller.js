@@ -152,14 +152,44 @@ const list = async (req,res) => {
   let where_query = `1 = 1`;
   let params = [];
 
-  if (req.dcs && req.dcs.length > 0) {
-    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-    where_query += ` AND stores.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
-    params = [...params, ...req.dcs];
+  let isFilterDC = false
+
+  if(req.body.hasOwnProperty("filter_dcs")){
+    if(typeof req.body.filter_dcs === "string"){
+      if(req.body.filter_dcs != ""){
+        isFilterDC = true
+        where_query += ` AND stores.dc_id IN (${req.body.filter_dcs})`; // Add filter for dc_id
+      }
+    }
   }
+
+  if(!isFilterDC){
+    if(req.body.hasOwnProperty("filter_comp")){
+      if(typeof req.body.filter_comp === "string"){
+        if(req.body.filter_comp != ""){
+          where_query += ` AND dcs.company_id = ${req.body.filter_comp}`;
+        }
+      }
+    }
+  }
+  console.log(where_query);
+
+  // if (req.dcs && req.dcs.length > 0) {
+  //   const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+  //   where_query += ` AND stores.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+  //   params = [...params, ...req.dcs];
+  // }
 
   if(req.role_name != "admin"){
     where_query += ` AND dcs.is_active = true`
+  }
+  
+  if(req.body.hasOwnProperty("filter_is_active")){
+    if(typeof req.body.filter_is_active === "string"){
+      if(req.body.filter_is_active != ""){
+        where_query += ` AND stores.is_active = ${req.body.filter_is_active}`
+      }
+    }
   }
 
   if (req.body.hasOwnProperty("search") && req.body.search) {
@@ -371,7 +401,7 @@ async function create (req,res){
   const existStoreCOde = await Store.findOne({
     where:{
         store_code: {
-          [Op.iLike] : req.body.dc_code
+          [Op.iLike] : req.body.store_code
         }
     }
 });

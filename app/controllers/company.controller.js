@@ -43,19 +43,23 @@ const list = (req,res) => {
     param_order = [column_sort,order];
   }
 
-  if(req.body.hasOwnProperty("search_company_name")){
-    where_query = {
-      company_name: {
-        [Op.iLike]: '%'+req.body.search_company_name+'%'
-      }
-    }
-  }
-
-  if(req.body.hasOwnProperty("search_company_name")){
-    where_query = {
-      company_code: {
-        [Op.iLike]: '%'+req.body.search_company_name+'%'
-      }
+  if(req.body.hasOwnProperty("search")){
+    if(req.body.search != ""){
+        where_query = {
+            ...where_query,
+            [Op.or]: [
+              {
+                company_name: {
+                  [Op.iLike]: '%'+req.body.search+'%'
+                }
+              },
+              {
+                company_code: {
+                  [Op.iLike]: '%'+req.body.search+'%'
+                }
+              }
+          ]
+        }
     }
   }
 
@@ -185,6 +189,24 @@ async function update (req,res) {
           message:"Company Code is already exist"
       });
   }
+
+  const existCompanyName = await Companies.findOne({
+    where:{
+        company_name: {
+          [Op.iLike]: req.body.company_name
+        },
+        id: { 
+          [Op.ne]: req.body.id 
+        }
+    }
+  });
+
+  if(existCompanyName){
+    return res.status(200).send({
+        is_ok:false,
+        message:"Company Name is already exist"
+    });
+  }
   
   //const t = await sequelize.transaction();
   try {
@@ -234,7 +256,9 @@ if(existCompanyCode){
 
   const existCompany = await Companies.findOne({
       where:{
-          company_name: req.body.company_name
+          company_name: {
+            [Op.iLike]: req.body.company_name
+          }
       }
   });
 

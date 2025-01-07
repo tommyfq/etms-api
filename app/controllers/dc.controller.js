@@ -67,6 +67,32 @@ const list = (req,res) => {
     }
   }
 
+  if(req.body.hasOwnProperty("filter_companies")){
+    if(typeof req.body.filter_companies === "string"){
+      if(req.body.filter_companies != ""){
+        let result = req.body.filter_companies.split(",").map(Number)
+        where_query = {
+          ...where_query,
+          company_id : {
+            [Op.in] : result
+          }
+        }
+      }
+    }
+  }
+
+  if(req.body.hasOwnProperty("filter_is_active")){
+    if(typeof req.body.filter_is_active === "string"){
+      if(req.body.filter_companies != ""){
+        const boolValue = req.body.filter_is_active === "true" ? true : false;
+        where_query = {
+          ...where_query,
+          is_active : boolValue
+        }
+      }
+    }
+  }
+
   if(req.role_name != "admin"){
     where_query = {
       ...where_query,
@@ -323,6 +349,81 @@ const listOption = (req,res) => {
       company_id:company_id
     }
   }
+
+  DC.findAll({
+      attributes:[
+        ['id','dc_id'],
+        'dc_name',
+      ],
+      where: where_query,
+      order: [param_order],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Data Found in DC",
+              data:result
+          })
+      }else{
+          res.status(200).send({
+              message:"Success",
+              data:result
+          })
+      }
+  });
+};
+
+const listOptionByComp = (req,res) => {
+
+  var param_order = ['dc_name', "asc"];
+  var where_query = {'is_active':true}
+
+  var company_id = req.body.filter_comp;
+
+  console.log(company_id)
+
+  // res.status(200).send({
+  //     message:"No Data Found in DC"
+  // });
+
+  if(company_id.length > 0){
+    where_query = {
+      ...where_query,
+      company_id : {
+        [Op.in] : company_id
+      }
+    }
+  }
+
+  DC.findAll({
+      attributes:[
+        ['id','dc_id'],
+        'dc_name',
+      ],
+      where: where_query,
+      order: [param_order],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Data Found in DC",
+              data:result
+          })
+      }else{
+          res.status(200).send({
+              message:"Success",
+              data:result
+          })
+      }
+  });
+};
+
+const listAllOption = (req,res) => {
+
+  var param_order = ['dc_name', "asc"];
+  var where_query = {'is_active':true}
 
   DC.findAll({
       attributes:[
@@ -665,6 +766,8 @@ module.exports = {
     detail,
     update,
     listOption,
+    listOptionByComp,
+    listAllOption,
     listStoreOption,
     upload,
     download

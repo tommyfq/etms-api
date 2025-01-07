@@ -171,7 +171,12 @@ const getTicketChartByYear = async (req,res) => {
       });
   
       const yearList = years.map((entry) => entry.year);
-  
+
+      const currentYear = new Date().getFullYear();
+      if (!yearList.includes(currentYear)) {
+        yearList.push(currentYear);
+      }
+
     return res.status(200).send({
         is_ok:true,
         message:"Successfully saved",

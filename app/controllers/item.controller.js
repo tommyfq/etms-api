@@ -265,6 +265,7 @@ const listModel = (req,res) => {
         attributes:[
           ['id','item_id'],
           'model',
+          'warranty_duration'
         ],
         where: where_query,
         order: [param_order],
