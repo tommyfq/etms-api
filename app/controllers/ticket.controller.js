@@ -10,6 +10,8 @@ const TicketAttachment = db.tickets_attachment;
 const TicketLog = db.ticket_logs;
 const Company = db.ticket_logs;
 const User = db.users;
+const Part = db.parts;
+const Diagnostic = db.diagnostics;
 
 const Op = db.Sequelize.Op;
 const fs = require("fs");
@@ -20,6 +22,8 @@ const {storeImages} = require("../middleware/upload");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 
 const {sendEmail} = require('../services/email.services')
+
+const { toTitleCase } = require('../helpers/general')
 
 async function generateTicketNumber() {
     // Use moment to get the current date in YYMMDD format
@@ -101,8 +105,9 @@ async function create (req,res){
         var storeTicket = {
             title: req.body.title,
             asset_id: existAsset.id,
+            part_id: req.body.part_id,
             ticket_no: req.ticketNo,
-            status: "Open",
+            status: "open",
             description: req.body.description,
             cc: req.body.cc,
             created_by: userId,
@@ -221,6 +226,43 @@ const list = async (req,res) => {
     where_query += ` AND dc.is_active = true`
   }
 
+  if(req.body.hasOwnProperty("filter_status")){
+    if(typeof req.body.filter_status === "string"){
+      if(req.body.filter_status != ""){
+        where_query += ` AND ticket.status = '${req.body.filter_status.toLowerCase()}'` 
+      }
+    }
+  }
+
+  if (req.body.hasOwnProperty("filter_from_date") && req.body.hasOwnProperty("filter_to_date")) {
+    if (typeof req.body.filter_from_date === "string" && typeof req.body.filter_to_date === "string") {
+        if (req.body.filter_from_date !== "" && req.body.filter_to_date !== "") {
+            const fromDate = new Date(req.body.filter_from_date);
+            const toDate = new Date(req.body.filter_to_date);
+
+            if (fromDate > toDate) {
+                return res.status(400).json({ error: "filter_from_date cannot be greater than filter_to_date" });
+            }
+        }
+    }
+}
+
+  if(req.body.hasOwnProperty("filter_from_date")){
+    if(typeof req.body.filter_from_date === "string"){
+      if(req.body.filter_from_date != ""){
+        where_query += ` AND ticket."createdAt" >= '${req.body.filter_from_date}'` 
+      }
+    }
+  }
+
+  if(req.body.hasOwnProperty("filter_to_date")){
+    if(typeof req.body.filter_to_date === "string"){
+      if(req.body.filter_to_date != ""){
+        where_query += ` AND ticket."createdAt" <= '${req.body.filter_to_date}'` 
+      }
+    }
+  }
+
   const countQuery = `
   SELECT COUNT(*) AS total
   FROM tickets AS ticket
@@ -237,10 +279,21 @@ const list = async (req,res) => {
       ticket.priority,
       ticket.status,
       ticket."createdAt",
-      ticket.on_hold
+      ticket.on_hold,
+      "part".part_name,
+      "asset".serial_number,
+      "item".brand,
+      "item".model,
+      "store".store_name,
+      "store".store_code,
+      "dc".dc_name,
+      "dc".dc_code
     FROM tickets AS ticket
     LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
+    LEFT JOIN items AS "item" ON item.id = "asset".item_id
     LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
+    LEFT JOIN stores AS "store" ON "store".id = "asset".store_id
+    LEFT JOIN parts AS "part" ON "part".id = ticket.part_id
     WHERE ${where_query}
     ORDER BY ticket."${column_sort}" ${order}
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -279,9 +332,16 @@ const list = async (req,res) => {
       console.log(page)
       console.log(total_pages)
       
+      const formattedRows = result.map((r) => {
+        return {
+          ...r,
+          createdAt: r.createdAt ? moment(r.createdAt).utcOffset(7).format('YYYY-MM-DD') : ""
+        };
+      });
+
       return res.status(200).send({
         message: "Success",
-        data: result,
+        data: formattedRows,
         payload: {
           pagination: createPagination(page, total_pages, page_length, result.count)
         }
@@ -440,6 +500,16 @@ const detail = (req,res) => {
               'text'
           ],
         },
+        {
+          model: Part, 
+          as : 'part',
+          attributes:[],
+        },
+        {
+          model: Diagnostic,
+          as : 'diagnostic',
+          attributes:[],
+        }
       ],
       attributes:[
         'id',
@@ -461,11 +531,15 @@ const detail = (req,res) => {
         'created_by',
         'asset_id',
         'customer_reference_no',
+        'part_id',
+        'diagnostic_id',
         [Sequelize.col('asset.item.brand'), 'brand'],         // Include asset item's brand
         [Sequelize.col('asset.item.model'), 'model'],         // Include asset item's model
         [Sequelize.col('asset.store.store_name'), 'store_name'], // Include asset store's name
         [Sequelize.col('asset.dc.dc_name'), 'dc_name'],
-        [Sequelize.col('asset.serial_number'), 'serial_number']
+        [Sequelize.col('asset.serial_number'), 'serial_number'],
+        [Sequelize.col('part.part_name'), 'part_name'],
+        [Sequelize.col('diagnostic.diagnostic_name'), 'diagnostic_name']
       ],
       where:{id:id},
       order: [[{ model: TicketLog, as: 'ticket_logs' }, 'createdAt', 'ASC']]
@@ -507,9 +581,9 @@ async function update (req,res) {
   const t = await sequelize.transaction();
   try{
       var data = {
-        status:req.body.status,
+        status:req.body.status.toLowerCase(),
         on_hold:req.body.on_hold,
-        priority:req.body.priority
+        priority:req.body.priority,
       }
 
       if(req.body.status == "In Progress"){
@@ -604,7 +678,8 @@ async function update (req,res) {
           transaction:t
         });
 
-        if(!swapAsset){;
+        if(!swapAsset){
+          await t.rollback();
           return res.status(200).send({
             is_ok:false,
             message:"Swap asset is not found"
@@ -647,6 +722,67 @@ async function update (req,res) {
 
       }
 
+      data['part_id'] = req.body.part_id;
+      //create part
+      if(req.body.part_id == 0){
+
+        var exPart = await Part.findOne({
+          where:{
+            part_name: {
+              [Op.iLike]:req.body.part_name
+            },
+          },
+          transaction:t
+        });
+
+        if(exPart){
+          await t.rollback();
+          return res.status(200).send({
+            is_ok:false,
+            message:"Cannot create existing part"
+          });
+        }
+
+        const part = await Part.create({
+          part_name:req.body.part_name,
+          is_active:true 
+        },{
+          transaction:t
+        });
+
+        data['part_id'] = part.id
+      }
+     
+      data['diagnostic_id'] = req.body.diagnostic_id;
+      //create diagnostic
+      if(req.body.diagnostic_id == 0){
+        var exDiagnostic = await Diagnostic.findOne({
+          where:{
+            diagnostic_name: {
+              [Op.iLike]:req.body.diagnostic_name
+            },
+          },
+          transaction:t
+        });
+
+        if(exDiagnostic){
+          await t.rollback();
+          return res.status(200).send({
+            is_ok:false,
+            message:"Cannot create existing diagnostic"
+          });
+        }
+
+       const diagnostic = await Diagnostic.create({
+         diagnostic_name:req.body.diagnostic_name,
+         is_active:true 
+       },{
+         transaction:t
+       });
+
+       data['diagnostic_id'] = diagnostic.id
+     }
+
       await Ticket.update(data,{
         where:{
           id:req.body.id
@@ -657,7 +793,27 @@ async function update (req,res) {
 
       await TicketLog.create(storeLog,{
         transaction:t
-      });      
+      });  
+      
+      //create part
+      if(req.body.part_id == 0){
+        await Part.create({
+          part_name:req.body.part_name,
+          is_active:true 
+        },{
+          transaction:t
+        });
+      }
+     
+      //create diagnostic
+      if(req.body.diagnostic_id == 0){
+       await Diagnostic.create({
+         diagnostic_name:req.body.diagnostic_name,
+         is_active:true 
+       },{
+         transaction:t
+       });
+     }
 
       await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset, t)
       
@@ -905,11 +1061,100 @@ const sendEmails = async (subject, templateData, templateFile, existAsset, t) =>
     await Promise.all(emailPromises);
 }
 
+const listParts = (req,res) => {
+
+  var param_order = ['part_name', "asc"];
+  var where_query = {'is_active':true}
+
+  Part.findAll({
+      attributes:[
+        ['id','part_id'],
+        'part_name',
+      ],
+      where: where_query,
+      order: [param_order],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Data Found in Part",
+              data:result
+          })
+      }else{
+          res.status(200).send({
+              message:"Success",
+              data:result
+          })
+      }
+  });
+};
+
+const listDiagnostics = (req,res) => {
+
+  var param_order = ['diagnostic_name', "asc"];
+  var where_query = {'is_active':true}
+
+  Diagnostic.findAll({
+      attributes:[
+        ['id','diagnostic_id'],
+        'diagnostic_name',
+      ],
+      where: where_query,
+      order: [param_order],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Data Found in Part",
+              data:result
+          })
+      }else{
+          res.status(200).send({
+              message:"Success",
+              data:result
+          })
+      }
+  });
+};
+
+const listStatus = (req,res) => {
+  var param_order = ['status', "asc"];
+
+  Ticket.findAll({
+      attributes:[
+        'status',
+      ],
+      order: [param_order],
+      group: ['status'],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Status Found in Tickets",
+              data:result
+          })
+      }else{
+            const statusList = result.map(item => item.status);
+            statusList.unshift("");
+            res.status(200).send({
+                message:"Success",
+                data:statusList
+            })
+      }
+  });
+}
+
 module.exports = {
     create,
     list,
     detail,
     update,
+    listParts,
+    listDiagnostics,
+    listStatus,
     listStoreOption,
     upload,
     generateTicketNumber,

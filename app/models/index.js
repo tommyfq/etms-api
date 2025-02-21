@@ -30,6 +30,8 @@ db.user_dc_access = require('./user_dc_access.model.js')(sequelize, Sequelize);
 db.tickets = require('./ticket.model.js')(sequelize, Sequelize);
 db.tickets_attachment = require('./ticket_attachment.model.js')(sequelize, Sequelize);
 db.ticket_logs = require('./ticket_log.model.js')(sequelize, Sequelize);
+db.parts = require('./parts.model.js')(sequelize, Sequelize);
+db.diagnostics = require('./diagnostic.model.js')(sequelize, Sequelize);
 
 db.users.belongsTo(db.roles,{
     foreignKey:"role_id",
@@ -147,6 +149,21 @@ db.tickets.belongsTo(db.users,{
 db.tickets.belongsTo(db.assets,{
   foreignKey:"asset_id",
   targetKey:"id"
+});
+
+db.tickets.belongsTo(db.parts,{
+  foreignKey:"part_id",
+  targetKey:"id"
+});
+
+db.tickets.belongsTo(db.diagnostics,{
+  foreignKey:"diagnostic_id",
+  targetKey:"id"
+});
+
+db.users.hasMany(db.user_dc_access,{
+  as : "accesses",
+  foreignKey: "user_id"
 });
 
 db.tickets_attachment.belongsTo(db.tickets,{

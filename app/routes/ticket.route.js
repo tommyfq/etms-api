@@ -25,6 +25,24 @@ module.exports = function(app) {
   );
 
   app.get(
+    "/api/ticket/list-parts",
+    [authJwt.verifyToken],
+    controller.listParts
+  );
+
+  app.get(
+    "/api/ticket/list-diagnostics",
+    [authJwt.verifyToken],
+    controller.listDiagnostics
+  );
+
+  app.get(
+    "/api/ticket/list-status",
+    [authJwt.verifyToken],
+    controller.listStatus
+  );
+
+  app.get(
     "/api/ticket/detail/:id",
     [authJwt.verifyToken],
     controller.detail

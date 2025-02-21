@@ -19,6 +19,15 @@ function validateHeaders(sheet, requiredColumns) {
     return { isValid: true };
   }
 
+function toTitleCase(str) {
+    return str
+        .toLowerCase() // Ensure all letters are lowercase first
+        .split(" ") // Split into words
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
+        .join(" "); // Join words back
+}
+
 module.exports = {
-    validateHeaders
+    validateHeaders,
+    toTitleCase
 }

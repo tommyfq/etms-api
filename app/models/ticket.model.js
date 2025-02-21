@@ -19,6 +19,12 @@ module.exports = (sequelize, Sequelize) => {
             /* Open, Rejected, In Progress, Completed */
             type: Sequelize.STRING(32)
         },
+        part_id:{
+            type: Sequelize.INTEGER
+        },
+        diagnostic_id:{
+            type: Sequelize.INTEGER
+        },
         priority:{
             type: Sequelize.STRING(64)
         },
