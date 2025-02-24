@@ -563,6 +563,8 @@ const detail = (req,res) => {
 
 async function update (req,res) {
 
+  console.log("===BODY===")
+  console.log(req.body);
   const now = moment().utcOffset(7);
 
     const existTicket = await Ticket.findOne({
@@ -586,11 +588,18 @@ async function update (req,res) {
         priority:req.body.priority,
       }
 
-      if(req.body.status == "In Progress"){
+      const existTicket = await Ticket.findOne({
+        where:{
+          id:req.body.id
+        }
+      });
+
+      if(req.body.status == "in progress" && existTicket.in_progress_at == ""){
           data["in_progress_at"] = now
+          data["repair_by"] = req.user_id
       }
 
-      if(req.body.status == "Closed"){
+      if(req.body.status == "closed"){
         data["closed_at"] = now
       }
 
@@ -1147,6 +1156,32 @@ const listStatus = (req,res) => {
   });
 }
 
+const listDC = async (req,res) => {
+  const listDC = await DC.findAll({
+    attributes:[
+      ['id','dc_id'],
+      'dc_name'
+    ],
+    where:{
+      id : {
+        [Op.in] : req.dcs
+      }
+    }
+  });
+
+  if(listDC.length > 0){
+    return res.status(200).send({
+        message:"No DC Found in Tickets",
+        data:[]
+    });
+  }else{
+      return res.status(200).send({
+        message:"Success",
+        data:listDC
+    })
+  }
+}
+
 module.exports = {
     create,
     list,
@@ -1155,6 +1190,7 @@ module.exports = {
     listParts,
     listDiagnostics,
     listStatus,
+    listDC,
     listStoreOption,
     upload,
     generateTicketNumber,

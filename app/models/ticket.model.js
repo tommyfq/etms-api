@@ -70,6 +70,9 @@ module.exports = (sequelize, Sequelize) => {
         },
         closed_at:{
             type:Sequelize.DATE
+        },
+        repair_by:{
+            type:Sequelize.INTEGER
         }
     });
   
