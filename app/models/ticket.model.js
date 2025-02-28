@@ -15,6 +15,9 @@ module.exports = (sequelize, Sequelize) => {
         asset_id: {
             type: Sequelize.INTEGER
         },
+        old_asset_id: {
+            type: Sequelize.INTEGER
+        },
         status: {
             /* Open, Rejected, In Progress, Completed */
             type: Sequelize.STRING(32)

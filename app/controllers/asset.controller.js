@@ -292,6 +292,46 @@ const detail = (req,res) => {
   })
 }
 
+const detailLog = async(req,res) => {
+  var where_query = `t.asset_id = ${req.params.id}`;
+
+  var rawQueryLog = `
+  select 
+  t."createdAt" as complain_at, 
+  t.status,
+  d.diagnostic_name, 
+  p.part_name, 
+    CASE 
+          WHEN t.old_asset_id IS NOT NULL THEN a.serial_number 
+          ELSE '' 
+      END AS serial_number
+  from tickets t
+  left join "diagnostics" d on t.diagnostic_id = d.id 
+  left join parts p on t.part_id = p.id 
+  left join assets a on t.asset_id = a.id 
+  left join assets oa on t.asset_id = oa.id 
+  where ${where_query}
+  order by t.id desc`;
+
+  const result = await sequelize.query(rawQueryLog, {
+    type: sequelize.QueryTypes.SELECT,
+  });
+
+  console.log(result);
+  
+  const formattedLogs = result.map((r) => {
+    return {
+      ...r,
+      complain_at: r.complain_at ? moment(r.complain_at).utcOffset(7).format('YYYY-MM-DD') : ""
+    };
+  });
+
+  res.status(200).send({
+    message:"Success",
+    data:formattedLogs
+});
+}
+
 async function update (req,res) {
   const existDC = await DC.findOne({
       where:{
@@ -940,6 +980,7 @@ module.exports = {
     create,
     list,
     detail,
+    detailLog,
     update,
     listOption,
     download,

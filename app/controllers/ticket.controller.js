@@ -719,6 +719,7 @@ async function update (req,res) {
 
         //set swap asset
         data["asset_id"] = req.body.swap_asset_id;
+        data["old_asset_id"] = existTicket.asset_id;
         
         //change text
         storeLog.text += ", swap asset from "+existAsset.serial_number+" to "+swapAsset.serial_number

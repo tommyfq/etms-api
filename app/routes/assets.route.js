@@ -20,6 +20,12 @@ module.exports = function(app) {
     controller.detail
   );
 
+  app.get(
+    "/api/asset/detail-log/:id",
+    [authJwt.verifyToken],
+    controller.detailLog
+  );
+
   app.post(
     "/api/asset/update",
     [authJwt.verifyToken],
