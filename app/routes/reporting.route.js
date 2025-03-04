@@ -10,9 +10,21 @@ module.exports = function(app) {
   );
 
   app.post(
-    "/api/report/list-filter",
+    "/api/report/list-year",
     [authJwt.verifyToken],
-    controller.ListFilter
+    controller.listYear
+  );
+
+  app.post(
+    "/api/report/list-month",
+    [authJwt.verifyToken],
+    controller.listMonth
+  );
+
+  app.post(
+    "/api/report/download",
+    [authJwt.verifyToken],
+    controller.download
   );
 
 };

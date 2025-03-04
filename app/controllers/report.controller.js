@@ -1,6 +1,7 @@
 const moment = require('moment');
-
+const xlsx = require('xlsx');
 const db = require("../models");
+
 const Asset = db.assets;
 const Ticket = db.tickets;
 const Item = db.items;
@@ -38,7 +39,7 @@ const list = async (req,res) => {
   var column_sort = "t.id";
   var order = "desc"
 
-
+  console.log(req.body);
   if(req.body.hasOwnProperty("sort")){
     column_sort = req.body.sort
     if(req.body.sort == "sla"){
@@ -87,18 +88,18 @@ const list = async (req,res) => {
     }
 }
 
-  if(req.body.hasOwnProperty("filter_from_date")){
-    if(typeof req.body.filter_from_date === "string"){
-      if(req.body.filter_from_date != ""){
-        where_query += ` AND t."createdAt" >= '${req.body.filter_from_date}'` 
+  if(req.body.hasOwnProperty("filter_year")){
+    if(typeof req.body.filter_year === "string"){
+      if(req.body.filter_year != ""){
+        where_query += ` AND EXTRACT(YEAR FROM t."createdAt") = ${req.body.filter_year}` 
       }
     }
   }
 
-  if(req.body.hasOwnProperty("filter_to_date")){
-    if(typeof req.body.filter_to_date === "string"){
-      if(req.body.filter_to_date != ""){
-        where_query += ` AND t."createdAt" <= '${req.body.filter_to_date}'` 
+  if(req.body.hasOwnProperty("filter_month")){
+    if(typeof req.body.filter_month === "string"){
+      if(req.body.filter_month != ""){
+        where_query += ` AND EXTRACT(MONTH FROM t."createdAt") = ${req.body.filter_month}` 
       }
     }
   }
@@ -118,7 +119,7 @@ const list = async (req,res) => {
   const rawQuery = `
     SELECT d.dc_code, d.dc_name, s.store_code, s.store_name,
     i.brand, i.model, a.serial_number, t."createdAt" as created_at, t.in_progress_at, t.closed_at,
-    (t.closed_at::date - t."createdAt"::date) AS duration_days,
+    (t.closed_at::date - t."createdAt"::date) AS sla,
     t.status, t.description, d2.diagnostic_name, p.part_name, 
     t.comment_client, t.ticket_no
     FROM tickets t 
@@ -194,7 +195,142 @@ const list = async (req,res) => {
   }
 };
 
-const ListFilter = async (req,res) => {
+const download = async(req, res) => {
+
+  var column_sort = "t.id";
+  var order = "desc"
+
+  if(req.body.hasOwnProperty("sort")){
+    column_sort = req.body.sort
+    if(req.body.sort == "sla"){
+        column_sort = "11"
+    }else if(req.body.sort == 'created_at'){
+         column_sort = 't."createdAt"'
+    }  
+  }
+
+  if(req.body.hasOwnProperty("order")){
+    order = req.body.order
+  }
+
+  let where_query = `1 = 1`;
+  let params = [];
+
+  if (req.dcs && req.dcs.length > 0) {
+    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+    where_query += ` AND a.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+    params = [...params, ...req.dcs];
+  }
+
+  if(req.role_name != "admin"){
+    where_query += ` AND d.is_active = true`
+  }
+
+  if(req.body.hasOwnProperty("filter_year")){
+    if(typeof req.body.filter_year === "string"){
+      if(req.body.filter_year != ""){
+        where_query += ` AND EXTRACT(YEAR FROM t."createdAt") = ${req.body.filter_year}` 
+      }
+    }
+  }
+
+  if(req.body.hasOwnProperty("filter_month")){
+    if(typeof req.body.filter_month === "string"){
+      if(req.body.filter_month != ""){
+        where_query += ` AND EXTRACT(MONTH FROM t."createdAt") = ${req.body.filter_month}` 
+      }
+    }
+  }
+
+  const rawQuery = `
+    SELECT d.dc_code, d.dc_name, 
+    s.store_code, s.store_name,
+    i.brand, i.model, a.serial_number, 
+    t."createdAt" as created_at, t.in_progress_at, t.closed_at,
+    (t.closed_at::date - t."createdAt"::date) AS sla,
+    t.status, t.description, 
+    t.comment_client, t.ticket_no,
+    d2.diagnostic_name, p.part_name
+    FROM tickets t 
+    LEFT JOIN assets a ON a.id = t.asset_id 
+    LEFT JOIN dcs d ON d.id = a.dc_id 
+    LEFT JOIN stores s ON s.id = a.store_id 
+    LEFT JOIN items i ON i.id = a.item_id 
+    LEFT JOIN "diagnostics" d2 ON d2.id = t.diagnostic_id 
+    LEFT JOIN parts p ON p.id = t.part_id 
+    WHERE ${where_query}
+    ORDER BY ${column_sort} ${order}
+  `;
+
+  try {
+    // Now execute the rawQuery to fetch the paginated data
+    const result = await sequelize.query(rawQuery, {
+      type: sequelize.QueryTypes.SELECT,
+    });
+
+    if (result.length === 0) {
+
+      return res.status(200).send({
+        message: "No Data Found in Report"
+      });
+    } else {
+      
+      const formattedResult = result.map((item, index) => {
+        const complainAt = item.created_at ? moment(item.created_at).utcOffset(7).format('YYYY-MM-DD') : ""
+        const repairAt = item.in_progress_at ? moment(item.in_progress_at).utcOffset(7).format('YYYY-MM-DD') : ""
+        const solvedAt = item.closed_at ? moment(item.closed_at).utcOffset(7).format('YYYY-MM-DD') : ""
+        
+        return {
+          No: index + 1, // Incremental number
+          'DC Name': item.dc_name,
+          'Store Name': item.store_name,
+          'Serial Number':item.serial_number,
+          'Brand':item.brand ?? null,
+          'Model': item.model ?? null, // Use the alias for dc_name
+          'Complain At': complainAt,
+          'Repair At': repairAt,
+          'Solved At': solvedAt,
+          'SLA':item.sla,
+          'Status':item.status,
+          'Description':item.description,
+          'Case Category':item.diagnostic_name,
+          'Part':item.part_name,
+          'Comment':item.comment_client
+        }
+      });
+
+       // Create a new workbook
+        const workbook = xlsx.utils.book_new();
+
+        // Convert data to a worksheet
+        const worksheet = xlsx.utils.json_to_sheet(formattedResult);
+
+        // Append the worksheet to the workbook
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'report');
+
+        // Create a buffer to write the workbook
+        const excelBuffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+        const timestamp = moment().format("YYYYMMDDHHmmss");
+
+        // Set the response headers for file download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename="report_'+timestamp+'.xlsx"');
+
+        // Send the Excel buffer as a response
+        res.send(excelBuffer);
+    }
+  } catch (error) {
+    console.error('Error fetching tickets:', error);
+    return res.status(200).send({
+      message: "error",
+      data: error
+    });
+    
+  }
+}
+
+const listYear = async (req,res) => {
     const years = await Ticket.findAll({
     attributes: [
         [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt'))), 'year'],
@@ -206,27 +342,71 @@ const ListFilter = async (req,res) => {
     const yearList = years.map((entry) => entry.year);
     yearList.unshift("");
 
-    const months = await Ticket.findAll({
-    attributes: [
-        [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt'))), 'month'],
-    ],
-    where: {
-        [sequelize.Op.and]: [
-            sequelize.where(sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt')), req.body?.year ?? yearList[0])
-        ]
-    },
-    order: [[sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt')), 'DESC']],
-    raw: true, // Return plain objects instead of Sequelize instances
-    });
+    // const months = await Ticket.findAll({
+    // attributes: [
+    //     [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt'))), 'month'],
+    // ],
+    // where: {
+    //     [sequelize.Op.and]: [
+    //         sequelize.where(sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt')), req.body?.year ?? yearList[0])
+    //     ]
+    // },
+    // order: [[sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt')), 'DESC']],
+    // raw: true, // Return plain objects instead of Sequelize instances
+    // });
 
-    const monthList = months.map((entry) => entry.month);
-    monthList.unshift("");
+    // const monthList = months.map((entry) => entry.month);
+    // monthList.unshift("");
 
     return res.status(200).send({
         is_ok:true,
         message:"Successfully saved",
-        data: {yearList:yearList, monthList:monthList}
+        data: yearList, 
+          //monthList:monthList
     });
+
+}
+
+const listMonth = async (req,res) => {
+
+  if(req.body.hasOwnProperty("year")){
+    const monthNames = [
+      { value: 1, label: "Jan" }, { value: 2, label: "Feb" }, { value: 3, label: "Mar" },
+      { value: 4, label: "Apr" }, { value: 5, label: "May" }, { value: 6, label: "Jun" },
+      { value: 7, label: "Jul" }, { value: 8, label: "Aug" }, { value: 9, label: "Sep" },
+      { value: 10, label: "Oct" }, { value: 11, label: "Nov" }, { value: 12, label: "Dec" }
+    ];
+  
+    const months = await Ticket.findAll({
+    attributes: [
+        [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt'))), 'month'],
+    ],
+    where: sequelize.where(
+      sequelize.fn("DATE_PART", "YEAR", sequelize.col("createdAt")),
+      req.body.year
+    ),
+    order: [[sequelize.fn('DATE_PART', 'MONTH', sequelize.col('createdAt')), 'ASC']],
+    raw: true, // Return plain objects instead of Sequelize instances
+    });
+  
+    const existingMonths = new Set(months.map((entry) => entry.month));
+  
+    const monthList = [
+      { value: 0, label: "" }, // Add blank option at the beginning
+      ...monthNames.filter((month) => existingMonths.has(month.value)) // Only include months that exist
+    ];
+  
+    return res.status(200).send({
+        is_ok:true,
+        message:"Successfully load",
+        data: monthList
+    });
+  }
+
+  return res.status(200).send({
+    is_ok:false,
+    message:"No year was selected"
+});
 
 }
 
@@ -419,5 +599,7 @@ module.exports = {
     listDC,
     listStoreOption,
     overview,
-    ListFilter
+    listYear,
+    listMonth,
+    download
 }
