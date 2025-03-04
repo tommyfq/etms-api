@@ -12,7 +12,7 @@ const slaLimits = {
 
 const getTicketCountByStatus = async (req, res) => {
   
-    const predefinedStatuses = ['Open', 'In Progress', 'On Hold'];
+    const predefinedStatuses = ['open', 'in progress', 'on hold'];
 
     let where_query = "1=1";
     let params = [];
