@@ -19,6 +19,8 @@ module.exports = function(app) {
     require('./ticket.route')(app)
     require('./dashboard.route')(app)
     require('./reporting.route')(app)
+    require('./diagnostic.route')(app)
+    require('./part.route')(app)
     // Add more routes as needed
     // require('./another-routes-file')(app);
   };

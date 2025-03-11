@@ -287,13 +287,16 @@ const list = async (req,res) => {
       "store".store_name,
       "store".store_code,
       "dc".dc_name,
-      "dc".dc_code
+      "dc".dc_code,
+      d.diagnostic_name as case_category,
+      "part".part_name
     FROM tickets AS ticket
     LEFT JOIN assets AS "asset" ON ticket.asset_id = "asset".id
     LEFT JOIN items AS "item" ON item.id = "asset".item_id
     LEFT JOIN dcs AS "dc" ON "asset".dc_id = "dc".id
     LEFT JOIN stores AS "store" ON "store".id = "asset".store_id
     LEFT JOIN parts AS "part" ON "part".id = ticket.part_id
+    LEFT JOIN diagnostics AS d ON d.id = ticket.diagnostic_id
     WHERE ${where_query}
     ORDER BY ticket."${column_sort}" ${order}
     LIMIT $${params.length + 1} OFFSET $${params.length + 2}
