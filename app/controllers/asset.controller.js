@@ -297,6 +297,8 @@ const detailLog = async(req,res) => {
 
   var rawQueryLog = `
   select 
+  t.id as ticket_id,
+  t.ticket_no,
   t."createdAt" as complain_at, 
   t.status,
   d.diagnostic_name, 

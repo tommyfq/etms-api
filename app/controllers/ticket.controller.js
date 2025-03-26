@@ -735,66 +735,13 @@ async function update (req,res) {
 
       }
 
-      data['part_id'] = req.body.part_id;
-      //create part
-      if(req.body.part_id == 0){
-
-        var exPart = await Part.findOne({
-          where:{
-            part_name: {
-              [Op.iLike]:req.body.part_name
-            },
-          },
-          transaction:t
-        });
-
-        if(exPart){
-          await t.rollback();
-          return res.status(200).send({
-            is_ok:false,
-            message:"Cannot create existing part"
-          });
-        }
-
-        const part = await Part.create({
-          part_name:req.body.part_name,
-          is_active:true 
-        },{
-          transaction:t
-        });
-
-        data['part_id'] = part.id
+      if(req.body.part_id != 0){
+        data['part_id'] = req.body.part_id;
       }
-     
-      data['diagnostic_id'] = req.body.diagnostic_id;
-      //create diagnostic
-      if(req.body.diagnostic_id == 0){
-        var exDiagnostic = await Diagnostic.findOne({
-          where:{
-            diagnostic_name: {
-              [Op.iLike]:req.body.diagnostic_name
-            },
-          },
-          transaction:t
-        });
-
-        if(exDiagnostic){
-          await t.rollback();
-          return res.status(200).send({
-            is_ok:false,
-            message:"Cannot create existing diagnostic"
-          });
-        }
-
-       const diagnostic = await Diagnostic.create({
-         diagnostic_name:req.body.diagnostic_name,
-         is_active:true 
-       },{
-         transaction:t
-       });
-
-       data['diagnostic_id'] = diagnostic.id
-     }
+    
+      if(req.body.diagnostic_id){
+        data['diagnostic_id'] = req.body.diagnostic_id;
+      }
 
       await Ticket.update(data,{
         where:{
