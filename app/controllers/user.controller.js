@@ -439,7 +439,21 @@ const getListRole = (req,res) => {
           });
         }
 
-        if(req.role_name == "super_client"){
+        const existRole = await Roles.findOne({
+          where:{
+              id: req.body.role_id
+          }
+        });
+
+        if(!existRole){
+          await t.rollback(); 
+          return res.status(200).send({
+            is_ok:false,
+            message:"Role is not found"
+          });
+        }
+
+        if(existRole.role_name == "super_client"){
           dcAccess.push({
             user_id:user.id,
             company_id:req.body.company_id,
