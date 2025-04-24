@@ -76,7 +76,7 @@ const list = (req,res) => {
 
     if (result.count === 0) {
       res.status(200).send({
-        message: "No Data Found in Case Category",
+        message: "No Data Found in Part Name",
         data: result.rows,
         payload: createPaginationNoData(page, total_pages, page_length, 0)
       });
@@ -174,7 +174,7 @@ async function create (req,res){
   if(existItem){
       return res.status(200).send({
           is_ok:false,
-          message:"Case Category is already exist"
+          message:"Part Name is already exist"
       });
   }
 
@@ -222,7 +222,7 @@ const upload = async(req, res) => {
     if(!sheetExists){
       return res.status(200).send({
         is_ok: false,
-        message: `Missing 'item' sheet in the uploaded file`
+        message: `Missing 'part' sheet in the uploaded file`
       });
     }
 
@@ -255,7 +255,7 @@ const upload = async(req, res) => {
         });
       }
 
-      const requiredColumns = ["No","Case Category","Is Active"]
+      const requiredColumns = ["No","Part Name","Is Active"]
 
       const resValid = validateHeaders(sheet,requiredColumns)
       console.log(resValid);
@@ -303,8 +303,8 @@ const upload = async(req, res) => {
 
 const updateOrCreate = async(i,row,t)=>{
   try{
-    if(!row.hasOwnProperty('Case Category')) {
-      return {is_ok:false,message:"Case Category is blank at row "+(i+1)}
+    if(!row.hasOwnProperty('Part Name')) {
+      return {is_ok:false,message:"Part Name is blank at row "+(i+1)}
     }
 
     if(!row.hasOwnProperty('Is Active')) {
@@ -330,13 +330,13 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existItems = await Part.findOne({
       where:{
-        part_name:where(fn('LOWER', col('part_name')), fn('LOWER', row["Case Category"])),
+        part_name:where(fn('LOWER', col('part_name')), fn('LOWER', row["Part Name"])),
       },
       transaction: t
     })
 
     var storeData = {
-      part_name:row["Case Category"],
+      part_name:row["Part Name"],
       is_active:row["Is Active"],
     }
   
@@ -361,7 +361,7 @@ const updateOrCreate = async(i,row,t)=>{
       )
       return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
-      await Items.create(storeData,{transaction:t})
+      await Part.create(storeData,{transaction:t})
       return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
     }
   
@@ -386,7 +386,7 @@ const download = async(req, res) => {
     const formattedResult = result.map((item, index) => {
       return {
       No: index + 1, // Incremental number
-      'Case Category':item.part_name,
+      'Part Name':item.part_name,
       'Is Active': item.is_active ? 'TRUE' : 'FALSE'
       }
     });

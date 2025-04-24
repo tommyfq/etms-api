@@ -223,7 +223,7 @@ const upload = async(req, res) => {
     if(!sheetExists){
       return res.status(200).send({
         is_ok: false,
-        message: `Missing 'item' sheet in the uploaded file`
+        message: `Missing 'case_category' sheet in the uploaded file`
       });
     }
 
