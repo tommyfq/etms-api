@@ -89,11 +89,16 @@ const list = async (req,res) => {
 
   let where_query = `1 = 1`;
   let params = [];
-
-  if (req.dcs && req.dcs.length > 0) {
-    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-    where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
-    params = [...params, ...req.dcs];
+  console.log("===DCS===")
+  console.log(req.dcs);
+  if (req.role_name != "admin") {
+    if (req.dcs && req.dcs.length > 0){
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+      params = [...params, ...req.dcs];
+    }else{
+      where_query += ` AND assets.dc_id IN (0)`
+    }
   }
 
   if(req.role_name != "admin"){
