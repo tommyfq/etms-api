@@ -100,14 +100,22 @@ const list = (req,res) => {
     }
   }
 
-  if(req.dcs.length > 0){
+  if(req.role_name == "super_client"){
     where_query = {
       ...where_query,
-      id : {
-        [Op.in] : req.dcs
+      company_id: req.company_id
+    }
+  }else{
+    if(req.dcs.length > 0){
+      where_query = {
+        ...where_query,
+        id : {
+          [Op.in] : req.dcs
+        }
       }
     }
   }
+  
 
   DC.findAndCountAll({
       include: [
