@@ -18,4 +18,16 @@ module.exports = function(app) {
     [],
     controller.testEmail
   );
+
+  app.post(
+    "/api/auth/forgot-password",
+    [],
+    controller.forgotPassword
+  );
+
+  app.post(
+    "/api/auth/reset-password",
+    [],
+    controller.resetPassword
+  );
 }

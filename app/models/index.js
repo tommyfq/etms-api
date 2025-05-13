@@ -32,6 +32,7 @@ db.tickets_attachment = require('./ticket_attachment.model.js')(sequelize, Seque
 db.ticket_logs = require('./ticket_log.model.js')(sequelize, Sequelize);
 db.parts = require('./parts.model.js')(sequelize, Sequelize);
 db.diagnostics = require('./diagnostic.model.js')(sequelize, Sequelize);
+db.log_reset = require('./log_reset.model.js')(sequelize, Sequelize);
 
 db.users.belongsTo(db.roles,{
     foreignKey:"role_id",
@@ -175,6 +176,11 @@ db.tickets.hasMany(db.tickets_attachment, {
   foreignKey: "ticket_id", // The key in the tickets_attachment table
   sourceKey: "id", // The primary key in the tickets table
   as: "attachments" // Optional: alias for the relationship
+});
+
+db.log_reset.belongsTo(db.users,{
+  foreignKey:"user_id",
+  targetKey:"id"
 });
 
 module.exports = db;
