@@ -37,4 +37,10 @@ module.exports = function(app) {
     [authJwt.verifyToken],
     controller.download
   );
+
+  app.post(
+    "/api/store/list-option",
+    [authJwt.verifyToken],
+    controller.listOptionByDC
+  );
 };

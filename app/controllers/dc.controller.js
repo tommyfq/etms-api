@@ -351,6 +351,17 @@ const listOption = (req,res) => {
 
   var company_id = req.params.company_id;
 
+  if(req.role_name == "super_client"){
+    company_id = req.company_id
+  }else if(req.role_name != "admin"){
+    where_query = {
+      ...where_query,
+      id : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
+
   if(company_id != 0){
     where_query = {
       ...where_query,
@@ -382,14 +393,26 @@ const listOption = (req,res) => {
   });
 };
 
-const listOptionByComp = (req,res) => {
+const listOptionByComp = async (req,res) => {
 
+  
   var param_order = ['dc_name', "asc"];
   var where_query = {'is_active':true}
 
   var company_id = req.body.filter_comp;
 
   console.log(company_id)
+
+  if(req.role_name == "super_client"){
+    company_id = [req.company_id]
+  }else if(req.role_name != "admin"){
+    where_query = {
+      ...where_query,
+      id : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
 
   // res.status(200).send({
   //     message:"No Data Found in DC"
@@ -404,7 +427,7 @@ const listOptionByComp = (req,res) => {
     }
   }
 
-  DC.findAll({
+  const dcs = await DC.findAll({
       attributes:[
         ['id','dc_id'],
         'dc_name',
@@ -412,20 +435,83 @@ const listOptionByComp = (req,res) => {
       where: where_query,
       order: [param_order],
       raw:true
-  })
-  .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Data Found in DC",
-              data:result
-          })
-      }else{
-          res.status(200).send({
-              message:"Success",
-              data:result
-          })
-      }
   });
+
+  if(dcs.count == 0){
+    return res.status(200).send({
+        message:"No Data Found in DC",
+        data:[]
+    })
+  }
+
+  let where_query_store = {is_active:true}
+
+  console.log("===COMPANY_ID===")
+  console.log(req.company_id)
+
+  if(req.role_name == "super_client"){
+    company_id = [req.company_id]
+  }else if(req.role_name != "admin"){
+    where_query_store = {
+      ...where_query_store,
+      '$dc.id$' : {
+        [Op.in] : req.dcs
+      }
+    }
+  }
+
+  if(company_id.length > 0){
+    where_query_store = {
+      ...where_query_store,
+      '$dc.company_id$': { // Use the association path in the where clause
+        [Op.in]: company_id
+      }
+    }
+  }
+
+  const stores = await Store.findAll({
+    attributes: [
+      ['id', 'store_id'],
+      'store_name'
+    ],
+    include: [{
+      model: DC,
+      as: 'dc',
+      required: false,
+      attributes: []
+    }],
+    where: where_query_store,
+    raw: true
+  });
+
+  if(stores.count == 0){
+    return res.status(200).send({
+        message:"No Data Found in DC",
+        data:[]
+    })
+  }
+
+  return res.status(200).send({
+    message:"Success",
+    data:{
+      dcs:dcs,
+      stores:stores
+    }
+  });
+  
+  // .then(result => {
+  //     if(result.count == 0){
+  //         res.status(200).send({
+  //             message:"No Data Found in DC",
+  //             data:result
+  //         })
+  //     }else{
+  //         res.status(200).send({
+  //             message:"Success",
+  //             data:result
+  //         })
+  //     }
+  // });
 };
 
 const listAllOption = (req,res) => {

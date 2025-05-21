@@ -250,7 +250,7 @@ const list = async (req,res) => {
   if(req.body.hasOwnProperty("filter_from_date")){
     if(typeof req.body.filter_from_date === "string"){
       if(req.body.filter_from_date != ""){
-        where_query += ` AND ticket."createdAt" >= '${req.body.filter_from_date}'` 
+        where_query += ` AND DATE(ticket."createdAt") >= '${req.body.filter_from_date}'` 
       }
     }
   }
@@ -258,7 +258,7 @@ const list = async (req,res) => {
   if(req.body.hasOwnProperty("filter_to_date")){
     if(typeof req.body.filter_to_date === "string"){
       if(req.body.filter_to_date != ""){
-        where_query += ` AND ticket."createdAt" <= '${req.body.filter_to_date}'` 
+        where_query += ` AND DATE(ticket."createdAt") <= '${req.body.filter_to_date}'` 
       }
     }
   }

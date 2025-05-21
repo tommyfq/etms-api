@@ -399,7 +399,7 @@ const getListRole = (req,res) => {
 
     const t = await sequelize.transaction();
     try{
-      await verifyEmail(req.body.email)
+      //await verifyEmail(req.body.email)
 
         var hashedPassword = await hashPassword(req.body.password)
         console.log(hashedPassword)

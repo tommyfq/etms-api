@@ -28,6 +28,8 @@ const list = async (req,res) => {
   var page_length = parseInt(req.body.items_per_page); //default 20
   var column_sort = "stores.id";
   var order = "asc"
+  let where_query = `1 = 1`;
+  let params = [];
 
   if(req.body.hasOwnProperty("sort")){
     column_sort = req.body.sort
@@ -50,6 +52,22 @@ const list = async (req,res) => {
       column_sort = `companies.company_name`
     }else{
       column_sort = `stores.${req.body.sort}`
+    }
+  }
+
+  if (req.role_name != "admin") {
+    if(req.company_id){
+      console.log("===COMPANY_ID===");
+      console.log(req.company_id)
+      where_query += ` AND dcs.company_id = ${req.company_id}`
+    }
+
+    if (req.dcs && req.dcs.length > 0){
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND stores.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+      params = [...params, ...req.dcs];
+    }else{
+      where_query += ` AND stores.dc_id IN (0)`
     }
   }
 
@@ -148,9 +166,6 @@ const list = async (req,res) => {
   //     raw:true
   // })
   // .then(result => {
-
-  let where_query = `1 = 1`;
-  let params = [];
 
   let isFilterDC = false
 
@@ -806,6 +821,54 @@ const download = async(req, res) => {
   }
 }
 
+const listOptionByDC = (req,res) => {
+
+  var param_order = ['store_name', "asc"];
+  var where_query = {'is_active':true}
+
+  var dc_id = req.body.filter_dc;
+
+  // res.status(200).send({
+  //     message:"No Data Found in DC"
+  // });
+
+  console.log("===FILTER_DC===")
+  console.log(req.body.filter_dc);
+
+  if(dc_id.length > 0){
+    where_query = {
+      ...where_query,
+      dc_id : {
+        [Op.in] : dc_id
+      }
+    }
+  }
+
+  Store.findAll({
+      attributes:[
+        ['id','store_id'],
+        'store_name',
+      ],
+      where: where_query,
+      order: [param_order],
+      raw:true
+  })
+  .then(result => {
+      if(result.count == 0){
+          res.status(200).send({
+              message:"No Data Found in Store",
+              data:result
+          })
+      }else{
+          res.status(200).send({
+              message:"Success",
+              data:result
+          })
+      }
+  });
+};
+
+
 
 module.exports = {
     create,
@@ -814,5 +877,6 @@ module.exports = {
     update,
     listStoreOption,
     upload,
-    download
+    download,
+    listOptionByDC
 }

@@ -105,6 +105,30 @@ const list = async (req,res) => {
     where_query += ` AND dcs.is_active = true`
   }
 
+  if(req.body.hasOwnProperty("filter_comp")){
+    if(typeof req.body.filter_comp === "string"){
+      if(req.body.filter_comp != ""){
+        where_query += ` AND dcs.company_id = ${req.body.filter_comp}`;
+      }
+    }
+  }
+
+  if(req.body.hasOwnProperty("filter_dcs")){
+    if(typeof req.body.filter_dcs === "string"){
+      if(req.body.filter_dcs != ""){
+        where_query += ` AND assets.dc_id IN (${req.body.filter_dcs})`; // Add filter for dc_id
+      }
+    }
+  }
+
+  if(req.body.hasOwnProperty("filter_store")){
+    if(typeof req.body.filter_store === "string"){
+      if(req.body.filter_store != ""){
+        where_query += ` AND assets.store_id IN (${req.body.filter_store})`; // Add filter for store_id
+      }
+    }
+  }
+
   if (req.body.hasOwnProperty("search") && req.body.search) {
     const searchParamIndex = params.length + 1;
     const searchValue = `%${req.body.search}%`;
