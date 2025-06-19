@@ -15,7 +15,7 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.BOOLEAN
         },
         address: {
-            type: Sequelize.STRING(500)
+            type: Sequelize.TEXT
         },
         dc_id: {
             type: Sequelize.INTEGER
