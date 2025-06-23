@@ -127,6 +127,7 @@ const list = (req,res) => {
       ],
       attributes:[
         'id',
+        'dc_code',
         'dc_name',
         'address',
         'createdAt',
@@ -214,20 +215,6 @@ if(existDCCode){
     });
 }
 
-  const existDC = await DC.findOne({
-      where:{
-          dc_name: { [Op.iLike]: req.body.dc_name },
-          id: { [Op.ne]: req.body.id }
-      }
-  });
-
-  if(existDC){
-      return res.status(200).send({
-          is_ok:false,
-          message:"DC Name Already Exist"
-      });
-  }
-
   const companyId = await Company.findOne({
       where:{
           id: req.body.company_id
@@ -286,21 +273,6 @@ async function create (req,res){
       return res.status(200).send({
           is_ok:false,
           message:"DC Code is already exist"
-      });
-  }
-
-  const existDC = await DC.findOne({
-      where:{
-          dc_name: {
-            [Op.iLike]: req.body.dc_name // Use Op.iLike for case-insensitive matching
-          }
-      }
-  });
-
-  if(existDC){
-      return res.status(200).send({
-          is_ok:false,
-          message:"DC Name Already Exist"
       });
   }
 
@@ -752,18 +724,6 @@ const updateOrCreate = async(i,row,t)=>{
   
       if (!hasChanged) {
         return { is_ok:false, message: 'No changes data at row '+(i+1) };
-      }
-
-      const existDCName = await DC.findOne({
-        where:{
-          dc_code:where(fn('LOWER', col('dc_name')), fn('LOWER', row["DC Name"])),
-          id: { [Op.ne]: existDC.id}
-        },
-        transaction: t
-      })
-  
-      if(existDCName){
-        return {is_ok:false,message:"DC Name is already exist at row "+(i+1)}
       }
       
       await DC.update(storeData,
