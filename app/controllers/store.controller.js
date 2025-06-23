@@ -319,22 +319,6 @@ const detail = (req,res) => {
 
 async function update (req,res) {
 
-  const existStoreName = await Store.findOne({
-      where:{
-          store_name: {
-            [Op.iLike]: req.body.store_name // Use Op.iLike for case-insensitive matching
-          },
-          id: { [Op.ne]: req.body.id }
-      }
-  });
-
-  if(existStoreName){
-      return res.status(200).send({
-          is_ok:false,
-          message:"Store Name is already exist"
-      });
-  }
-
   const existStoreCode = await Store.findOne({
     where:{
         store_code: {
@@ -397,21 +381,6 @@ async function update (req,res) {
 }
 
 async function create (req,res){
-
-  const existStoreName = await Store.findOne({
-      where:{
-          store_name: {
-            [Op.iLike]: req.body.store_name // Use Op.iLike for case-insensitive matching
-          }
-      }
-  });
-
-  if(existStoreName){
-      return res.status(200).send({
-          is_ok:false,
-          message:"Store Name Already Exist"
-      });
-  }
 
   const existStoreCOde = await Store.findOne({
     where:{
@@ -705,18 +674,6 @@ const updateOrCreateStore = async(i,row,t)=>{
   
       if (!hasChanged) {
         return { is_ok:false, message: 'No changes detected at row '+(i+1) };
-      }
-
-      const existStoreName = await Store.findOne({
-        where:{
-          dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"])),
-          id: { [Op.ne]: existStore.id}
-        },
-        transaction: t
-      })
-  
-      if(existStoreName){
-        return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
       }
 
       await Store.update(storeData,
