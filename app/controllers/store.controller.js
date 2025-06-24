@@ -686,16 +686,16 @@ const updateOrCreateStore = async(i,row,t)=>{
       )
       return {is_ok:true,message:"Successfully update at row "+(i+1)}
     }else{
-      const existStoreName = await Store.findOne({
-        where:{
-          dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"]))
-        },
-        transaction: t
-      })
+      // const existStoreName = await Store.findOne({
+      //   where:{
+      //     dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"]))
+      //   },
+      //   transaction: t
+      // })
   
-      if(existStoreName){
-        return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
-      }
+      // if(existStoreName){
+      //   return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
+      // }
 
       await Store.create(storeData,{transaction:t})
       return {is_ok:true,message:"Successfully insert at row "+(i+1)}

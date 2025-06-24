@@ -736,16 +736,16 @@ const updateOrCreate = async(i,row,t)=>{
       )
       return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
-      const existDCName = await DC.findOne({
-        where:{
-          dc_code:where(fn('LOWER', col('dc_name')), fn('LOWER', row["DC Name"]))
-        },
-        transaction: t
-      })
+      // const existDCName = await DC.findOne({
+      //   where:{
+      //     dc_code:where(fn('LOWER', col('dc_name')), fn('LOWER', row["DC Name"]))
+      //   },
+      //   transaction: t
+      // })
   
-      if(existDCName){
-        return {is_ok:false,message:"DC Name is already exist at row "+(i+1)}
-      }
+      // if(existDCName){
+      //   return {is_ok:false,message:"DC Name is already exist at row "+(i+1)}
+      // }
 
       await DC.create(storeData,{transaction:t})
       return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
