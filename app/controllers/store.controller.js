@@ -651,7 +651,7 @@ const updateOrCreateStore = async(i,row,t)=>{
   
   const existStore = await Store.findOne({
     where:{
-      store_code:where(fn('LOWER', col('store_code')), fn('LOWER', row["Store COde"]))
+      store_code:where(fn('LOWER', col('store_code')), fn('LOWER', row["Store Code"]))
     },
     transaction:t
   })
