@@ -362,7 +362,7 @@ const updateOrCreate = async(i,row,t)=>{
       )
       return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
     }else{
-      await Items.create(storeData,{transaction:t})
+      await Diagnostic.create(storeData,{transaction:t})
       return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
     }
   
