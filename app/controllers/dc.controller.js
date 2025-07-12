@@ -53,6 +53,11 @@ const list = (req,res) => {
             ...where_query,
             [Op.or]: [
               {
+                dc_code: {
+                    [Op.iLike]: `%${req.body.search}%`
+                }
+              },
+              {
                   dc_name: {
                       [Op.iLike]: `%${req.body.search}%`
                   }
@@ -690,7 +695,7 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existCompany = await Company.findOne({
       where:{
-        company_code:row["Company Code"]
+        company_code:row["Company Code"].trim()
       },
       transaction: t
     })
@@ -701,7 +706,7 @@ const updateOrCreate = async(i,row,t)=>{
 
     const existDC = await DC.findOne({
       where:{
-        dc_code:where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"]))
+        dc_code:where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"].trim()))
       },
       transaction: t
     })
