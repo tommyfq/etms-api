@@ -1,4 +1,5 @@
 const xlsx = require('xlsx');
+const bcrypt = require('bcryptjs');
 
 function validateHeaders(sheet, requiredColumns) {
     // Get the headers from the first row of the sheet
@@ -27,7 +28,14 @@ function toTitleCase(str) {
         .join(" "); // Join words back
 }
 
+async function hashPassword(plainPassword) {
+  const saltRounds = 10; // You can increase the number of salt rounds for more security
+  const hashedPassword = await bcrypt.hash(plainPassword, saltRounds);
+  return hashedPassword;
+}
+
 module.exports = {
     validateHeaders,
-    toTitleCase
+    toTitleCase,
+    hashPassword
 }

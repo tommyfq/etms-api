@@ -642,7 +642,7 @@ async function update (req,res) {
         createdAt: now.format('DD MM YY HH:mm:ss'),
         description: existTicket.description,
         status: req.body.status,
-        link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list',
+        link: 'https://dev-helpdesk.epsindo.co.id/apps/tickets/list?id='+req.body.id,
       };
 
       var templateFile = "ticket_update.ejs"
