@@ -47,6 +47,38 @@ const sendEmail = async (to,subject,templateFile, templateData) => {
   }
 };
 
+const testMail = async () => {
+  try {
+    // Create a transporter
+    const transporter = nodemailer.createTransport({
+      host: config.smtp_host, // Your SMTP server
+      port: config.smtp_port, // SMTP port (SSL)
+      secure: config.smtp_secure, // Use SSL
+      auth: {
+        user: config.smtp_user, // Your email username
+        pass: config.stmp_pass, // Your email password
+      },
+    });
+
+    // Email options
+    const mailOptions = {
+        from: '"Helpdesk EPSindo" <helpdesk@epsindo.co.id>', // Sender address
+        to: "tommyquiko@gmail.com", // Receiver email
+        subject: "testing", // Subject line
+        text: '', // Plain text body
+        html: "testing", // HTML body (optional)
+      };
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+    console.log(info)
+    console.log('Email sent: ' + info.response);
+    return info;
+  } catch (error) {
+    console.error('Error sending email: ', error);
+  }
+};
+
 const verifyEmail = async (email) => {
   const transporter = nodemailer.createTransport({
     host: config.smtp_host, // Your SMTP server
@@ -74,5 +106,6 @@ const verifyEmail = async (email) => {
 
 module.exports = {
     sendEmail,
+    testMail,
     verifyEmail
 }

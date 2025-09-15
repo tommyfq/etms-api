@@ -218,7 +218,7 @@ async function verifyToken(req, res){
 }
 
 async function testEmail(req, res){
-  var response = await email.sendEmail()
+  var response = await email.testMail()
   return res.status(200).send({
     is_ok:true,
     message:"Succesfully Send Email"
