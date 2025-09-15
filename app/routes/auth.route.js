@@ -30,4 +30,10 @@ module.exports = function(app) {
     [],
     controller.resetPassword
   );
+
+  app.get(
+    "/api/auth/check-token",
+    [],
+    controller.checkToken
+  );
 }

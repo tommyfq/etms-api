@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 var jwt = require("jsonwebtoken");
 const config = require("../../config/app.config");
 const email = require("../services/email.services")
-const { validateHeaders } = require('../helpers/general')
+const { validateHeaders, hashPassword } = require('../helpers/general')
 
 const db = require("../models");
 const {fn,where,col} = db.Sequelize
@@ -278,17 +278,17 @@ async function forgotPassword(req,res){
           }
         );
         
-          // const emailPromises = result.map((r) => {
+          const emailPromises = result.map((r) => {
         
-          //   const templateData = {
-          //     userName: user.username,
-          //     resetLink: 'https:/localhost:5173/auth/reset-password?token='+token,
-          //   };
+            const templateData = {
+              userName: user.username,
+              resetLink: config.fe_url+'/auth/reset-password?token='+token,
+            };
         
-          //   return sendEmail(r.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
-          // });
+            return sendEmail(r.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
+          });
         
-          // await Promise.all(emailPromises);
+          await Promise.all(emailPromises);
 
       }else{
         return res.status(200).send(
@@ -370,8 +370,8 @@ async function resetPassword(req, res){
           {message: "User not found"}
         );
       } 
-  
-      await User.update({password:password},{
+      let hashedPassword = await hashPassword(password);
+      await User.update({password:hashedPassword},{
       where:{
         id:decoded.id
       },
@@ -398,7 +398,7 @@ async function resetPassword(req, res){
       if (error.name === 'TokenExpiredError') {
         // token is expired
         return res.status(403).send({
-          message: "Token has been expired"
+          message: "Link is expired"
         });
       }
         console.log(error)
@@ -417,10 +417,84 @@ async function resetPassword(req, res){
   
 }
 
+async function checkToken(req,res){
+  let token = req.headers['authorization'];
+
+  if (!token) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "No token provided!"
+    });
+  }
+  
+  if (!token.startsWith("Bearer ")) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "No token provided!"
+    });
+  }
+  
+  token = token.replace("Bearer ","");
+
+  const logReset = await LogReset.findOne(
+    {
+      where:{token:token}
+    }
+  );
+
+  if(logReset){
+    try{
+      const decoded = jwt.verify(token, config.secret);
+      // Assuming the token contains the user id, find the user
+      const user = await User.findOne(
+        {
+          where:{
+            id:decoded.id
+          }
+        }
+      );
+
+      if (!user) {
+        return res.status(200).send(
+          {
+            is_ok: false,
+            message: "User not found"
+          }
+        );
+      } 
+
+      return res.status(200).send(
+        {
+          is_ok: true,
+          message: "Token is Valid"
+        }
+      );
+    
+    }catch(error){
+      if (error.name === 'TokenExpiredError') {
+        // token is expired
+        return res.status(200).send({
+          is_ok:false,
+          message: "Link is expired"
+        });
+      }
+
+      console.log(error)
+      return res.status(200).send(
+        {
+          is_ok: false,
+          message: "Internal server error"
+        }
+      );
+    }
+  }
+}
+
   module.exports = {
     signin,
     verifyToken,
     testEmail,
     resetPassword,
-    forgotPassword
+    forgotPassword,
+    checkToken
 }
