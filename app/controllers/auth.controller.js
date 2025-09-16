@@ -2,7 +2,7 @@ const moment = require('moment');
 const bcrypt = require('bcryptjs');
 var jwt = require("jsonwebtoken");
 const config = require("../../config/app.config");
-const email = require("../services/email.services")
+const {sendEmail} = require('../services/email.services')
 const { validateHeaders, hashPassword } = require('../helpers/general')
 
 const db = require("../models");
@@ -295,7 +295,7 @@ async function forgotPassword(req, res) {
       };
 
       // Send a single email to the user who requested the reset
-      await email.sendEmail(user.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
+      await sendEmail(user.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
 
       // If everything is successful, commit the transaction
       await t.commit();
