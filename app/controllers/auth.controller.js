@@ -295,7 +295,7 @@ async function forgotPassword(req, res) {
       };
 
       // Send a single email to the user who requested the reset
-      await sendEmail(user.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
+      await email.sendEmail(user.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
 
       // If everything is successful, commit the transaction
       await t.commit();
