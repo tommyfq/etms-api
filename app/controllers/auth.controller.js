@@ -225,105 +225,105 @@ async function testEmail(req, res){
   });
 }
 
-async function forgotPassword(req,res){
+async function forgotPassword(req, res) {
   const email = req.body.email;
 
-  const user = await User.findOne(
-    {
-      where:{
-        email:email
+  try {
+    const user = await User.findOne({
+      where: {
+        email: email
       },
-    }
-  );
+    });
 
-  if(!user){
-    return res.status(200).send(
-      {
+    // For security, we send the same response whether the user is found or not.
+    // This prevents attackers from checking which emails are registered (user enumeration).
+    if (!user) {
+      return res.status(200).send({
+        is_ok: true,
+        message: "If your email is in our system, you will receive a password reset link."
+      });
+    }
+
+    // Check if a recent request already exists
+    const logReset = await LogReset.findOne({
+      where: {
+        user_id: user.id
+      }
+    });
+
+    if (logReset && moment().diff(moment(logReset.createdAt), 'hours') < 2) {
+      return res.status(200).send({ // 429 Too Many Requests is more appropriate
         is_ok: false,
-        message: "Email is not found"
-      }
-    );
-  }
-  
-  //generate expired token
-  var data = {
-    id: user.id
-  }
-  
-  var token = jwt.sign(
-    data, 
-    config.secret, 
-    {expiresIn: config.expired_time}
-  );
-  
-  const logReset = await LogReset.findOne({
-    where:{
-      user_id:user.id
+        message: "Password reset link already sent. Please wait 2 hours before trying again."
+      });
     }
-  });
 
-  const t = await sequelize.transaction();
+    // Generate a new JWT token for the password reset
+    const token = jwt.sign({
+      id: user.id
+    }, config.secret, {
+      expiresIn: config.expired_time // e.g., '2h'
+    });
 
-  try{
-    if(logReset){
-      if(moment().diff(moment(logReset.createdAt), 'hours') > 2){
+    const t = await sequelize.transaction();
 
-        await LogReset.update(
-          {token:token},
-          {
-            where:{
-              id:logReset.id
-            },
-            transaction: t
-          }
-        );
-        
-          const emailPromises = result.map((r) => {
-        
-            const templateData = {
-              userName: user.username,
-              resetLink: config.fe_url+'/auth/reset-password?token='+token,
-            };
-        
-            return sendEmail(r.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
-          });
-        
-          await Promise.all(emailPromises);
-
-      }else{
-        return res.status(200).send(
-          {
-            is_ok: false,
-            message: "Password reset link sent. Please wait 2 hours."
-          }
-        );
+    try {
+      // If a log exists, update it. If not, create it.
+      if (logReset) {
+        await LogReset.update({
+          token: token
+        }, {
+          where: {
+            id: logReset.id
+          },
+          transaction: t
+        });
+      } else {
+        await LogReset.create({
+          token: token,
+          user_id: user.id
+        }, {
+          transaction: t
+        });
       }
-    }else{
-      await LogReset.create({
-        token:token,
-        user_id:user.id
-      },{transaction: t});
+
+      // --- FIX & REFACTOR: Email sending logic moved here ---
+      // Prepare email data and send the email
+      const templateData = {
+        userName: user.username,
+        resetLink: `${config.fe_url}/auth/reset-password?token=${token}`,
+      };
+
+      // Send a single email to the user who requested the reset
+      await sendEmail(user.email, 'Epsindo - Reset Password', 'forgot_password.ejs', templateData);
+
+      // If everything is successful, commit the transaction
+      await t.commit();
+
+      // --- FIX: Added a proper success response ---
+      return res.status(200).send({
+        is_ok: true,
+        message: "If your email is in our system, you will receive a password reset link."
+      });
+
+    } catch (error) {
+      // If any error occurs during DB operation or email sending, roll back
+      await t.rollback();
+      console.log(error);
+      return res.status(500).json({ // 500 Internal Server Error is more appropriate
+        is_ok: false,
+        message: "An internal error occurred. Please try again later."
+      });
     }
-    await t.commit();
 
-  }catch (error) {
-    await t.rollback();
-
-    console.log(error)
-    return res.json({
+  } catch (error) {
+    // Catch errors from the initial user lookup
+    console.log(error);
+    return res.status(500).json({
       is_ok: false,
-      message: error.toString()
-    })
-  }  
-
-  return res.status(200).send(
-    {
-      is_ok: true,
-      token:token,
-      message: "Please check your email to reset your password"
-    }
-  );
-
+      message: "An error occurred while processing your request."
+    });
+  }
 }
 
 async function resetPassword(req, res){
