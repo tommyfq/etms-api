@@ -583,6 +583,16 @@ const listOption = (req,res) => {
       attributes:[
         ['id','asset_id'],
         'serial_number',
+        'warranty_expired',
+        [
+          Sequelize.literal(`
+            CASE
+              WHEN assets.warranty_expired >= NOW() THEN true
+              ELSE false
+            END
+          `),
+          'warranty_status'
+        ],
         [Sequelize.col('item.brand'), 'brand'],
         [Sequelize.col('item.model'), 'model'],
         [Sequelize.col('store.store_name'), 'store_name'],

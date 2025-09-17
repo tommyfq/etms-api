@@ -542,6 +542,16 @@ const detail = (req,res) => {
         [Sequelize.col('asset.store.store_name'), 'store_name'], // Include asset store's name
         [Sequelize.col('asset.dc.dc_name'), 'dc_name'],
         [Sequelize.col('asset.serial_number'), 'serial_number'],
+        [Sequelize.col('asset.warranty_expired'), 'warranty_expired'],
+        [
+          Sequelize.literal(`
+            CASE
+              WHEN asset.warranty_expired >= NOW() THEN true
+              ELSE false
+            END
+          `),
+          'warranty_status'
+        ],
         [Sequelize.col('part.part_name'), 'part_name'],
         [Sequelize.col('diagnostic.diagnostic_name'), 'diagnostic_name']
       ],
