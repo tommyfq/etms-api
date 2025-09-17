@@ -536,6 +536,7 @@ const detail = (req,res) => {
         'customer_reference_no',
         'part_id',
         'diagnostic_id',
+        'closed_at',
         [Sequelize.col('asset.item.brand'), 'brand'],         // Include asset item's brand
         [Sequelize.col('asset.item.model'), 'model'],         // Include asset item's model
         [Sequelize.col('asset.store.store_name'), 'store_name'], // Include asset store's name
@@ -550,6 +551,7 @@ const detail = (req,res) => {
         const formattedResult = {
         ...result.dataValues,
         due_date: result.due_date ? moment(result.due_date).utcOffset(7).format('YYYY-MM-DD') : "",
+        closed_at: result.closed_at ? moment(result.due_date).utcOffset(7).format('YYYY-MM-DD HH:mm:ss') : "",
         ticket_logs: result.ticket_logs.map(log => ({
           ...log.dataValues,
           createdAt: moment(log.createdAt).utcOffset(7).format('DD MMM YY, HH:mm:ss')
