@@ -346,7 +346,7 @@ const list = async (req,res) => {
         message: "Success",
         data: formattedRows,
         payload: {
-          pagination: createPagination(page, total_pages, page_length, result.count)
+          pagination: createPagination(page, total_pages, page_length, total_count)
         }
       });
     }
