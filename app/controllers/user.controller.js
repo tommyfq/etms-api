@@ -484,11 +484,277 @@ const getListRole = (req,res) => {
     } 
   }
 
+  const accountDetail = (req,res) => {
+
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const baseUrl = `${protocol}://${host}`;
+
+    const sqlQuery = `
+        SELECT
+            "u"."id", "u"."username", "u"."name", "u"."email", "u"."is_active",
+            "u"."createdAt", "u"."updatedAt", "u"."role_id", 
+            CONCAT(:baseUrl, "u"."avatar") AS "avatar",
+            "r"."role_name" as role,
+            (
+                SELECT "c".company_name FROM user_dc_accesses AS "a"
+                INNER JOIN companies AS "c" ON "a"."company_id" = "c"."id"
+                WHERE "a"."user_id" = "u"."id" LIMIT 1
+            ) AS "company_name",
+            (
+                SELECT COALESCE(STRING_AGG("dc".dc_name, ', '), '')
+                FROM user_dc_accesses AS "a"
+                INNER JOIN dcs AS "dc" ON "a"."dc_id" = "dc"."id"
+                WHERE "a"."user_id" = "u"."id"
+            ) AS "dcs"
+        FROM 
+            users AS "u"
+        LEFT JOIN 
+            roles AS "r" ON "u"."role_id" = "r"."id"
+        WHERE 
+            "u"."id" = :id;
+    `;
+
+    sequelize.query(sqlQuery, {
+        replacements: { 
+          id: req.user_id,
+          baseUrl: baseUrl 
+        },
+        type: sequelize.QueryTypes.SELECT
+    })
+    .then(results => {
+        if (!results || results.length === 0) {
+            return res.status(200).send({ 
+              is_ok:true,
+              message: "User not found" 
+            });
+        }
+
+        const formattedResult = results[0];
+        
+        // The 'dcs' field is now a single string, e.g., "DC-West, DC-East"
+        // No JSON parsing is needed.
+        
+        res.status(200).send({
+            is_ok:true,
+            message: "Success",
+            data: formattedResult
+        });
+    })
+    .catch(err => {
+        console.error("Error executing raw query:", err);
+        res.status(200).send({ 
+          is_ok:false,
+          message: "An error occurred" 
+        });
+    });
+  }
+
+  const updateProfile = async (req, res) => {
+    try {
+      const userId = req.user_id; // Get user ID from JWT token
+      
+      // Validation
+      if (!req.body.name || req.body.name.trim() === '') {
+        return res.status(400).send({
+          is_ok: false,
+          message: "Name is required"
+        });
+      }
+
+      if (!req.body.email || req.body.email.trim() === '') {
+        return res.status(400).send({
+          is_ok: false,
+          message: "Email is required"
+        });
+      }
+
+      // Email format validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(req.body.email)) {
+        return res.status(400).send({
+          is_ok: false,
+          message: "Invalid email format"
+        });
+      }
+
+      // Check if email already exists for other users
+      const existEmail = await Users.findOne({
+        where: {
+          email: req.body.email,
+          id: { [Op.ne]: userId }
+        }
+      });
+
+      if (existEmail) {
+        return res.status(400).send({
+          is_ok: false,
+          message: "Email is already exist"
+        });
+      }
+
+      // Check if user exists
+      const user = await Users.findByPk(userId);
+      if (!user) {
+        return res.status(404).send({
+          is_ok: false,
+          message: "User not found"
+        });
+      }
+
+      // Prepare update data
+      const updateData = {
+        name: req.body.name.trim(),
+        email: req.body.email.trim()
+      };
+
+      // Handle avatar upload if provided
+      if (req.file) {
+        // Delete old avatar file if exists
+        if (user.avatar) {
+          const fs = require('fs');
+          const path = require('path');
+          const oldAvatarPath = path.join(__dirname, `../../public/avatars/${req.user_id}/`, user.avatar);
+          if (fs.existsSync(oldAvatarPath)) {
+            fs.unlinkSync(oldAvatarPath);
+          }
+        }
+        updateData.avatar = `/avatars/${req.user_id}/${req.file.filename}`
+      }
+
+      console.log("===UPDATED_DATA===")
+      console.log(updateData)
+      // Update user profile
+      await Users.update(updateData, {
+        where: { id: userId }
+      });
+
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseUrl = `${protocol}://${host}`;
+
+      const sqlQuery = `
+          SELECT
+              "u"."id", "u"."username", "u"."name", "u"."email", "u"."is_active",
+              "u"."createdAt", "u"."updatedAt", "u"."role_id", 
+              CONCAT(:baseUrl, "u"."avatar") AS "avatar",
+              "r"."role_name" as role,
+              (
+                  SELECT "c".company_name FROM user_dc_accesses AS "a"
+                  INNER JOIN companies AS "c" ON "a"."company_id" = "c"."id"
+                  WHERE "a"."user_id" = "u"."id" LIMIT 1
+              ) AS "company_name",
+              (
+                  SELECT COALESCE(STRING_AGG("dc".dc_name, ', '), '')
+                  FROM user_dc_accesses AS "a"
+                  INNER JOIN dcs AS "dc" ON "a"."dc_id" = "dc"."id"
+                  WHERE "a"."user_id" = "u"."id"
+              ) AS "dcs"
+          FROM 
+              users AS "u"
+          LEFT JOIN 
+              roles AS "r" ON "u"."role_id" = "r"."id"
+          WHERE 
+              "u"."id" = :id;
+      `;
+
+      const updatedUser = await sequelize.query(sqlQuery, {
+          replacements: { 
+            id: req.user_id,
+            baseUrl: baseUrl 
+          },
+          type: sequelize.QueryTypes.SELECT
+      })
+
+      return res.status(200).send({
+        is_ok: true,
+        message: "Profile updated successfully",
+        data: updatedUser[0]
+      });
+
+    } catch (error) {
+      console.error('Update profile error:', error);
+      return res.status(500).send({
+        is_ok: false,
+        message: "Internal server error"
+      });
+    }
+  };
+
+  const changePassword = async (req, res) => {
+    try {
+      const userId = req.user_id;
+
+      // Check if user exists
+      const user = await Users.findByPk(userId);
+      if (!user) {
+        return res.status(404).send({
+          is_ok: false,
+          message: "User not found"
+        });
+      }
+
+      // Check old password
+      const isOldPasswordValid = await bcrypt.compare(req.body.oldPassword, user.password);
+      console.log("isOldPasswordValid")
+      console.log(isOldPasswordValid)
+      if (!isOldPasswordValid) {
+        return res.status(200).send({
+          is_ok: false,
+          message: "Old password is incorrect"
+        });
+      }
+
+      // Check if new password matches confirm password
+      if (req.body.newPassword !== req.body.confirmPassword) {
+        return res.status(200).send({
+          is_ok: false,
+          message: "New password and confirm password do not match"
+        });
+      }
+
+      // Hash new password
+      const hashedNewPassword = await hashPassword(req.body.newPassword);
+
+      // Check old password
+      const isNewPasswordValid = await bcrypt.compare(req.body.newPassword, user.password);
+      console.log("isNewPasswordValid")
+      console.log(isNewPasswordValid)
+      if (isNewPasswordValid) {
+        return res.status(200).send({
+          is_ok: false,
+          message: "Cannot used old password"
+        });
+      }
+
+      // Update password
+      await Users.update(
+        { password: hashedNewPassword },
+        { where: { id: userId } }
+      );
+
+      return res.status(200).send({
+        is_ok: true,
+        message: "Password changed successfully"
+      });
+
+    } catch (error) {
+      console.error('Change password error:', error);
+      return res.status(200).send({
+        is_ok: false,
+        message: "Internal server error"
+      });
+    }
+  };
+
 module.exports = {
     getListAgent,
     getListRole,
     list,
     detail,
     create,
-    update
+    update,
+    accountDetail,
+    updateProfile,
+    changePassword
 }

@@ -1,4 +1,5 @@
 const { authJwt } = require("../middleware");
+const { uploadAvatar } = require("../middleware/upload");
 const controller = require("../controllers/user.controller");
 
 module.exports = function(app) {
@@ -36,5 +37,23 @@ module.exports = function(app) {
     "/api/user/list-role",
     [authJwt.verifyToken],
     controller.getListRole
+  );
+
+  app.get(
+    "/api/account/detail",
+    [authJwt.verifyToken],
+    controller.accountDetail
+  );
+
+  app.post(
+    "/api/account/update",
+    [authJwt.verifyToken, uploadAvatar.single("avatar")],
+    controller.updateProfile
+  );
+
+  app.post(
+    "/api/account/change-password",
+    [authJwt.verifyToken],
+    controller.changePassword
   );
 };

@@ -22,6 +22,9 @@ module.exports = (sequelize, Sequelize) => {
         },
         name: {
             type: Sequelize.STRING(300)
+        },
+        avatar: {
+            type: Sequelize.STRING(4000)
         }
     });
   

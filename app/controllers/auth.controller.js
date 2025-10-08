@@ -39,8 +39,17 @@ async function signin(req, res) {
           );
       }
   
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseUrl = `${protocol}://${host}`;
+
       const user = await User.findOne(
         {
+          attributes: {
+            include: [
+              [sequelize.fn('CONCAT', baseUrl, sequelize.col('avatar')), 'avatar']
+            ]
+          },
           include:[
             {
               model:UserAccess,
@@ -72,6 +81,8 @@ async function signin(req, res) {
         );
       }
   
+      console.log(user.is_active);
+
       if(!user.is_active){
         return res.status(200).send(
           {
@@ -99,7 +110,8 @@ async function signin(req, res) {
         role_id: user.role.id,
         role_name: user.role.role_name,
         company_id: 0,
-        dcs:[]
+        dcs:[],
+        avatar: user.avatar
       }
 
       if (user.access && user.access.length > 0) {
@@ -171,8 +183,17 @@ async function verifyToken(req, res){
         // Verify the token using the secret key
         const decoded = jwt.verify(token, config.secret);
         // Assuming the token contains the user id, find the user
-        const user = await User.findOne(
-            {
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const baseUrl = `${protocol}://${host}`;
+
+      const user = await User.findOne(
+        {
+          attributes: {
+            include: [
+              [sequelize.fn('CONCAT', baseUrl, sequelize.col('avatar')), 'avatar']
+            ]
+          },
               include:[
                 {
                   model:UserAccess,
@@ -204,7 +225,8 @@ async function verifyToken(req, res){
                 email: user.email,
                 role_id: user.role.id,
                 role_name: user.role.role_name,
-                dcs: user.access?.map((a) => a.dc_id) ?? []
+                dcs: user.access?.map((a) => a.dc_id) ?? [],
+                avatar: user.avatar
             }
 
             return res.json( data );

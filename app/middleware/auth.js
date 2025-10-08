@@ -35,6 +35,7 @@ verifyToken = (req, res, next) => {
       req.role_name = decoded.role_name;
       req.dcs = decoded.dcs;
       req.company_id = decoded.company_id;
+      req.avatar = decoded.avatar
       // console.log(decoded);
       next();
     });

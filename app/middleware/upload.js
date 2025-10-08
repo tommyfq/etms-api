@@ -42,6 +42,22 @@ const imageStorage = multer.diskStorage({
   },
 });
 
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    console.log(req.user_id);
+    const avatarFolder = path.join(
+      __basedir,
+      "/public/avatars", 
+      `${req.user_id}`
+    );
+    fs.mkdirSync(avatarFolder, { recursive: true });
+    cb(null, avatarFolder); // Directory for avatar images
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-avatar-${file.originalname}`); // Custom filename
+  },
+});
+
 const publicImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     console.log(req.ticketNo);
@@ -62,10 +78,16 @@ const publicImageStorage = multer.diskStorage({
 // Initialize multer for both file types
 const uploadExcel = multer({ storage: excelStorage, fileFilter: excelFilter });
 const uploadImages = multer({ storage: imageStorage, fileFilter: imageFilter });
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  fileFilter: imageFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
 const storeImages = multer({
   storage: publicImageStorage,
   limits: { files: 10 },
 }).array("images", 10);
 
 // Export the upload middleware
-module.exports = { uploadExcel, uploadImages, storeImages };
+module.exports = { uploadExcel, uploadImages, uploadAvatar, storeImages };
