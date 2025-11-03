@@ -787,7 +787,7 @@ async function update (req,res) {
        });
      }
 
-      await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset, t)
+      await sendEmails("Ticket Update Notification",templateData,templateFile,existAsset, req.body.id, t)
       
       await t.commit();
 
@@ -1005,29 +1005,73 @@ const overview = async (req,res) => {
   }
 }
 
-const sendEmails = async (subject, templateData, templateFile, existAsset, t) => {
-  const query = `
-            SELECT u.username, u.email
-            FROM user_dc_accesses uda
-            LEFT JOIN users u ON uda.user_id = u.id
-            WHERE uda.dc_id = (SELECT dc_id FROM assets WHERE id = :asset_id)
-            OR uda.company_id = :company_id
+const sendEmails = async (subject, templateData, templateFile, existAsset, ticketId, t) => {
+    const dcAccessQuery = `
+        WITH TargetDC AS (
+            SELECT dc_id
+            FROM assets
+            WHERE id = :asset_id
+        )
+        SELECT u.username, u.email
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        LEFT JOIN user_dc_accesses uda ON uda.user_id = u.id
+        WHERE
+            -- CONDITION 1: User has an access record for the target DC
+            uda.dc_id = (SELECT dc_id FROM TargetDC)
+            OR
+            -- CONDITION 2: User is a 'super_client' tied to the company
+            (
+                r.role_name = 'super_client'
+                AND uda.company_id = :company_id
+            )
     `;
 
-    const replacements = { asset_id: existAsset.id, company_id: existAsset.dc.company_id };
+    const dcReplacements = { 
+        asset_id: existAsset.id, 
+        company_id: existAsset.dc.company_id 
+    };
 
-    // Execute the raw query
-    const result = await sequelize.query(query, {
-      replacements,
-      type: Sequelize.QueryTypes.SELECT,
-      transaction:t
-    });
+    const ticketCreatorQuery = `
+        SELECT u.username, u.email
+        FROM tickets t
+        JOIN users u ON t.created_by = u.id
+        WHERE t.id = :ticket_id
+    `;
     
-    const emailPromises = result.map((r) => {
+    const ticketReplacements = { ticket_id: ticketId };
 
-      templateData.userName = r.username;
+    const dcRecipients = await sequelize.query(dcAccessQuery, {
+      replacements: dcReplacements,
+      type: Sequelize.QueryTypes.SELECT,
+      transaction: t
+    });
+    const creatorRecipient = await sequelize.query(ticketCreatorQuery, {
+        replacements: ticketReplacements,
+        type: Sequelize.QueryTypes.SELECT,
+        transaction: t
+    });
 
-      return sendEmail(r.email, subject, templateFile, templateData);
+    const allRecipients = [...dcRecipients, ...creatorRecipient];
+
+    const uniqueRecipientsMap = allRecipients.reduce((map, recipient) => {
+        // Use email as the key for uniqueness, ensuring no duplicate emails are processed
+        if (recipient.email && !map.has(recipient.email)) {
+            map.set(recipient.email, recipient);
+        }
+        return map;
+    }, new Map());
+
+    const finalRecipients = Array.from(uniqueRecipientsMap.values());
+
+    const emailPromises = finalRecipients.map((r) => {
+
+      // IMPORTANT: Create a clean copy of templateData for each email, 
+      // then set the unique userName for personalization.
+      const individualTemplateData = { ...templateData }; 
+      individualTemplateData.userName = r.username;
+
+      return sendEmail(r.email, subject, templateFile, individualTemplateData);
     });
 
     await Promise.all(emailPromises);
