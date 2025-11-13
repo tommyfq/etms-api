@@ -135,12 +135,25 @@ async function create (req,res){
           await TicketLog.create(storeLog, {transaction:t})
           //Send email
           const query = `
+            WITH TargetDC AS (
+                SELECT dc_id
+                FROM assets
+                WHERE id = :asset_id
+            )
             SELECT u.username, u.email
-            FROM user_dc_accesses uda
-            LEFT JOIN users u ON uda.user_id = u.id
-            WHERE uda.dc_id = (SELECT dc_id FROM assets WHERE id = :asset_id)
-            OR uda.company_id = :company_id
-          `;
+            FROM users u
+            JOIN roles r ON r.id = u.role_id
+            LEFT JOIN user_dc_accesses uda ON uda.user_id = u.id
+            WHERE
+                -- CONDITION 1: User has an access record for the target DC
+                uda.dc_id = (SELECT dc_id FROM TargetDC)
+                OR
+                -- CONDITION 2: User is a 'super_client' tied to the company
+                (
+                    r.role_name = 'super_client'
+                    AND uda.company_id = :company_id
+                )
+        `;
 
           const replacements = { asset_id: existAsset.id, company_id: existAsset.dc.company_id };
 
