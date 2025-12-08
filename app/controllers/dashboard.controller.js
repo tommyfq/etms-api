@@ -309,6 +309,8 @@ const getListRepairAsset = async (req,res) => {
     params = [...params, ...req.dcs];
   }
 
+  console.log("===ROLE_NAME===")
+  console.log(req.role_name)
   if(req.role_name != "admin"){
     where_query += ` AND dcs.is_active = true`
   }
@@ -316,12 +318,11 @@ const getListRepairAsset = async (req,res) => {
   try{
     const countQuery = `
     SELECT 
-          COUNT(s.store_code) as total
+          COUNT(DISTINCT s.store_code) as total
       FROM assets a
       LEFT JOIN stores s ON s.id = a.store_id
       LEFT JOIN dcs ON dcs.id = s.dc_id
       WHERE ${where_query}
-      GROUP BY s.store_code
     `;
 
     const countResult = await sequelize.query(countQuery, {
@@ -354,7 +355,7 @@ const getListRepairAsset = async (req,res) => {
                   WHEN a.id IN (
                       SELECT asset_id 
                       FROM tickets 
-                      WHERE status IN ('Open', 'In Progress', 'On Hold')
+                      WHERE status IN ('open', 'in progress', 'on hold')
                   ) THEN 1 
                   ELSE 0 
               END
@@ -371,7 +372,7 @@ const getListRepairAsset = async (req,res) => {
                         WHEN a.id IN (
                             SELECT asset_id 
                             FROM tickets 
-                            WHERE status IN ('Open', 'In Progress', 'On Hold')
+                            WHERE status IN ('open', 'in progress', 'on hold')
                         ) THEN 1 
                         ELSE 0 
                     END
@@ -395,13 +396,16 @@ const getListRepairAsset = async (req,res) => {
     const total_count = totalRows; // Total number of items
     const total_pages = Math.ceil(total_count / page_length)
 
+    console.log("===CREATE_PAGINATION===")
+    console.log(page,total_pages,page_length,total_count);
+    console.log(createPagination(page, total_pages, page_length, total_count));
     if(result.length > 0){
 
       return res.status(200).send({
           message: "Success",
           data: result,
           payload: {
-            pagination: createPagination(page, total_pages, page_length, result.count)
+            pagination: createPagination(page, total_pages, page_length, total_count)
           }
         });
     }
