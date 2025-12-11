@@ -21,6 +21,7 @@ module.exports = function(app) {
     require('./reporting.route')(app)
     require('./diagnostic.route')(app)
     require('./part.route')(app)
+    require('./holidays.route')(app)
     // Add more routes as needed
     // require('./another-routes-file')(app);
   };

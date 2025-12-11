@@ -33,6 +33,7 @@ db.ticket_logs = require('./ticket_log.model.js')(sequelize, Sequelize);
 db.parts = require('./parts.model.js')(sequelize, Sequelize);
 db.diagnostics = require('./diagnostic.model.js')(sequelize, Sequelize);
 db.log_reset = require('./log_reset.model.js')(sequelize, Sequelize);
+db.holidays = require('./holidays.model.js')(sequelize, Sequelize);
 
 db.users.belongsTo(db.roles,{
     foreignKey:"role_id",

@@ -20,19 +20,21 @@ const path = require("path");
 const reader = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
+const { calculateBusinessDays } = require("../helpers/ticket");
 
+/*
 const list = async (req,res) => {
-  /* search by dc name */
-  /* search by company name */
+  //search by dc name 
+  //search by company name 
 
-  /* 
-    search_dc_name
-    search_company_name
-    page
-    page_length
-    column_sort
-    order
-  */
+  
+    // search_dc_name
+    // search_company_name
+    // page
+    // page_length
+    // column_sort
+    // order
+  
 
   var page = parseInt(req.body.page, 10);
   var page_length = parseInt(req.body.items_per_page, 10); //default 20
@@ -193,6 +195,174 @@ const list = async (req,res) => {
     });
     
   }
+};
+*/
+
+const list = async (req, res) => {
+    var page = parseInt(req.body.page, 10);
+    var page_length = parseInt(req.body.items_per_page, 10); //default 20
+    var column_sort = "t.id";
+    var order = "desc"
+
+    console.log(req.body);
+    if(req.body.hasOwnProperty("sort")){
+      column_sort = req.body.sort
+      if(req.body.sort == "sla"){
+          column_sort = "11"
+      }else if(req.body.sort == 'created_at'){
+          column_sort = 't."createdAt"'
+      }  
+      
+    }
+
+    if(req.body.hasOwnProperty("order")){
+      order = req.body.order
+    }
+
+    let where_query = `1 = 1`;
+    let params = [];
+
+    if (req.dcs && req.dcs.length > 0) {
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND a.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+      params = [...params, ...req.dcs];
+    }
+
+    if(req.role_name != "admin"){
+      where_query += ` AND d.is_active = true`
+    }
+
+    if(req.body.hasOwnProperty("filter_status")){
+      if(typeof req.body.filter_status === "string"){
+        if(req.body.filter_status != ""){
+          where_query += ` AND t.status = '${req.body.filter_status.toLowerCase()}'` 
+        }
+      }
+    }
+
+    if (req.body.hasOwnProperty("filter_from_date") && req.body.hasOwnProperty("filter_to_date")) {
+      if (typeof req.body.filter_from_date === "string" && typeof req.body.filter_to_date === "string") {
+          if (req.body.filter_from_date !== "" && req.body.filter_to_date !== "") {
+              const fromDate = new Date(req.body.filter_from_date);
+              const toDate = new Date(req.body.filter_to_date);
+
+              if (fromDate > toDate) {
+                  return res.status(400).json({ error: "filter_from_date cannot be greater than filter_to_date" });
+              }
+          }
+      }
+  }
+
+    if(req.body.hasOwnProperty("filter_year")){
+      if(typeof req.body.filter_year === "string"){
+        if(req.body.filter_year != ""){
+          where_query += ` AND EXTRACT(YEAR FROM t."createdAt") = ${req.body.filter_year}` 
+        }
+      }
+    }
+
+    if(req.body.hasOwnProperty("filter_month")){
+      if(typeof req.body.filter_month === "string"){
+        if(req.body.filter_month != ""){
+          where_query += ` AND EXTRACT(MONTH FROM t."createdAt") = ${req.body.filter_month}` 
+        }
+      }
+    }
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      from tickets t 
+      LEFT JOIN assets a ON a.id = t.asset_id 
+      LEFT JOIN dcs d ON d.id = a.dc_id 
+      LEFT JOIN stores s ON s.id = a.store_id 
+      LEFT JOIN items i ON i.id = a.item_id 
+      LEFT JOIN "diagnostics" d2 ON d2.id = t.diagnostic_id 
+      LEFT JOIN parts p ON p.id = t.part_id 
+      WHERE ${where_query} 
+  `;
+
+    const rawQuery = `
+      SELECT d.dc_code, d.dc_name, s.store_code, s.store_name,
+      i.brand, i.model, a.serial_number, t."createdAt" as created_at, t.in_progress_at, t.closed_at,
+      (t.closed_at::date - t."createdAt"::date) AS sla,
+      t.status, t.description, d2.diagnostic_name, p.part_name, 
+      t.comment_client, t.ticket_no
+      FROM tickets t 
+      LEFT JOIN assets a ON a.id = t.asset_id 
+      LEFT JOIN dcs d ON d.id = a.dc_id 
+      LEFT JOIN stores s ON s.id = a.store_id 
+      LEFT JOIN items i ON i.id = a.item_id 
+      LEFT JOIN "diagnostics" d2 ON d2.id = t.diagnostic_id 
+      LEFT JOIN parts p ON p.id = t.part_id 
+      WHERE ${where_query}
+      ORDER BY ${column_sort} ${order}
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+    `;
+
+
+    try {
+        // 1. Get Totals
+        const countResult = await sequelize.query(countQuery, {
+             bind: params, 
+             type: sequelize.QueryTypes.SELECT 
+        });
+        const totalTickets = countResult[0].total;
+
+        // 2. Fetch Data
+        params.push(page_length);
+        params.push((page - 1) * page_length);
+        
+        const result = await sequelize.query(rawQuery, {
+            bind: params,
+            type: sequelize.QueryTypes.SELECT,
+        });
+
+        const total_count = totalTickets;
+        const total_pages = Math.ceil(total_count / page_length);
+
+        if (result.length === 0) {
+            return res.status(200).send({
+                message: "No Data Found",
+                data: [],
+                payload: createPaginationNoData(page, total_pages, page_length, 0)
+            });
+        } else {
+            
+            // 3. FETCH HOLIDAYS (Do this once per request)
+            // Ideally, cache this or fetch only relevant year range
+            const holidaysRaw = await sequelize.query(
+                `SELECT date FROM holidays`, 
+                { type: sequelize.QueryTypes.SELECT }
+            );
+            const holidayList = holidaysRaw.map(h => moment(h.date).format('YYYY-MM-DD'));
+
+            // 4. MAP DATA USING HELPER
+            const formattedRows = result.map((r) => {
+                // USE THE IMPORTED FUNCTION HERE
+                const slaDays = calculateBusinessDays(r.created_at, r.closed_at, holidayList);
+
+                return {
+                    ...r,
+                    created_at: r.created_at ? moment(r.created_at).utcOffset(7).format('YYYY-MM-DD') : "",
+                    closed_at: r.closed_at ? moment(r.closed_at).utcOffset(7).format('YYYY-MM-DD') : "",
+                    sla: slaDays // Logic is now clean and hidden in the helper
+                };
+            });
+
+            console.log("===FORMATTED_ROWS===")
+            console.log(formattedRows);
+            return res.status(200).send({
+                message: "Success",
+                data: formattedRows,
+                payload: {
+                    pagination: createPagination(page, total_pages, page_length, total_count)
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching tickets:', error);
+        return res.status(500).send({ message: "error", data: error });
+    }
 };
 
 const download = async(req, res) => {
