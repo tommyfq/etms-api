@@ -601,7 +601,7 @@ const listOption = (req, res) => {
     where: {
       ...where_query,
       id: {
-        [Op.notIn]: Sequelize.literal(`(SELECT asset_id FROM tickets where status in ('Open','In Progress','On Hold'))`) // Exclude assets that are in the tickets table
+        [Op.notIn]: Sequelize.literal(`(SELECT asset_id FROM tickets where status in ('open','in progress','on hold'))`) // Exclude assets that are in the tickets table
       }
     },
     order: param_order,
@@ -681,7 +681,7 @@ const checkSerialNumber = (req, res) => {
     where: {
       ...where_query,
       id: {
-        [Op.notIn]: Sequelize.literal(`(SELECT asset_id FROM tickets where status in ('Open','In Progress','On Hold'))`) // Exclude assets that are in the tickets table
+        [Op.notIn]: Sequelize.literal(`(SELECT asset_id FROM tickets where status in ('open','in progress','on hold'))`) // Exclude assets that are in the tickets table
       }
     },
     raw: true
