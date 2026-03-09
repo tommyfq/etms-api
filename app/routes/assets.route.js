@@ -39,6 +39,19 @@ module.exports = function(app) {
   );
 
   app.get(
+    "/api/asset/check-serial-number",
+    [authJwt.verifyToken],
+    controller.checkSerialNumber
+  );
+
+  app.post(
+    "/api/asset/check-serial-number",
+    [authJwt.verifyToken],
+    controller.checkSerialNumber
+  );
+
+
+  app.get(
     "/api/asset/download",
     [authJwt.verifyToken],
     controller.download

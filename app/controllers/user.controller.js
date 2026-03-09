@@ -488,7 +488,8 @@ const getListRole = (req,res) => {
 
     const host = req.get('host');
     const protocol = req.protocol;
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = "https://dev-api-helpdesk.epsindo.co.id"
+    //const baseUrl = `${protocol}://${host}`;
 
     const sqlQuery = `
         SELECT

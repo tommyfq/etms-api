@@ -44,11 +44,6 @@ const list = (req,res) => {
               name: {
                   [Op.iLike]: `%${req.body.search}%`
               }
-          },
-          {
-              date: {
-                  [Op.iLike]: `%${req.body.search}%`
-              }
           }
       ]
       }
