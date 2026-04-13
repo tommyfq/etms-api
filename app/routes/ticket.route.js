@@ -1,10 +1,10 @@
 const { authJwt, storeImages } = require("../middleware");
 const controller = require("../controllers/ticket.controller");
 
-module.exports = function(app) {
+module.exports = function (app) {
   app.post(
     "/api/ticket/create",
-    [authJwt.verifyToken], 
+    [authJwt.verifyToken],
     async (req, res, next) => {
       try {
         req.ticketNo = await controller.generateTicketNumber(); // Set ticket number on `req`
@@ -60,9 +60,15 @@ module.exports = function(app) {
     controller.overview
   );
 
-//   app.patch(
-//     "/api/store/upload",
-//     [upload.single("file")],
-//     controller.upload
-//   );
+  app.post(
+    "/api/ticket/download",
+    [authJwt.verifyToken],
+    controller.download
+  );
+
+  //   app.patch(
+  //     "/api/store/upload",
+  //     [upload.single("file")],
+  //     controller.upload
+  //   );
 };
