@@ -107,7 +107,7 @@ const list = async (req, res) => {
 
   if (req.body.hasOwnProperty("filter_comp")) {
     if (typeof req.body.filter_comp === "string") {
-      if (req.body.filter_comp != "") {
+      if (req.body.filter_comp != "" && req.body.filter_comp != "0") {
         where_query += ` AND dcs.company_id = ${req.body.filter_comp}`;
       }
     }
