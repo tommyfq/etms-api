@@ -129,6 +129,14 @@ const list = async (req, res) => {
     }
   }
 
+  if (req.body.hasOwnProperty("filter_is_active")) {
+    if (typeof req.body.filter_is_active === "string") {
+      if (req.body.filter_is_active != "") {
+        where_query += ` AND assets.is_active = ${req.body.filter_is_active}`
+      }
+    }
+  }
+
   if (req.body.hasOwnProperty("search") && req.body.search) {
     const searchParamIndex = params.length + 1;
     const searchValue = `%${req.body.search}%`;
