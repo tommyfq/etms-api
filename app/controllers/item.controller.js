@@ -5,13 +5,12 @@ const fs = require("fs");
 const db = require("../models");
 const Op = db.Sequelize.Op;
 const { sequelize, Sequelize } = require("../models");
-const {fn,where,col} = db.Sequelize
+const { fn, where, col } = db.Sequelize
 const Items = db.items;
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 const { validateHeaders } = require('../helpers/general')
 
-const list = (req,res) => {
-  console.log("===ASSET_LIST===")
+const list = (req, res) => {
 
   /* 
     search_company_name
@@ -21,289 +20,286 @@ const list = (req,res) => {
     column_sort
     order
   */
-  console.log(req.body);
+
   let page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
   var column_sort = "id";
   var order = "asc"
 
-  if(req.body.hasOwnProperty("sort")){
+  if (req.body.hasOwnProperty("sort")) {
     column_sort = req.body.sort
   }
 
-  if(req.body.hasOwnProperty("order")){
+  if (req.body.hasOwnProperty("order")) {
     order = req.body.order
   }
 
   var where_query = {};
-  
+
   var param_order = [];
 
-  console.log(column_sort);
-  
-  param_order = [column_sort,order];
-  
-  if(req.body.hasOwnProperty("search")){
-    if(req.body.search != ""){
+  param_order = [column_sort, order];
+
+  if (req.body.hasOwnProperty("search")) {
+    if (req.body.search != "") {
       where_query = {
         ...where_query,
         [Op.or]: [
           {
-              brand: {
-                  [Op.iLike]: `%${req.body.search}%`
-              }
+            brand: {
+              [Op.iLike]: `%${req.body.search}%`
+            }
           },
           {
             model: {
-                [Op.iLike]: `%${req.body.search}%`
+              [Op.iLike]: `%${req.body.search}%`
             }
           }
-      ]
+        ]
       }
     }
   }
 
   Items.findAndCountAll({
-      attributes:[
-        'id',
-        'brand',
-        'model',
-        'warranty_duration',
-        'createdAt',
-        'updatedAt',
-        'is_active'
-      ],
-      where: where_query,
-      offset: (page-1)*page_length,
-      limit: page_length,
-      order: [param_order],
-      raw:true
+    attributes: [
+      'id',
+      'brand',
+      'model',
+      'warranty_duration',
+      'createdAt',
+      'updatedAt',
+      'is_active'
+    ],
+    where: where_query,
+    offset: (page - 1) * page_length,
+    limit: page_length,
+    order: [param_order],
+    raw: true
   })
-  .then(result => {
-    const total_count = result.count; // Total number of items
-    const total_pages = Math.ceil(total_count / page_length)
+    .then(result => {
+      const total_count = result.count; // Total number of items
+      const total_pages = Math.ceil(total_count / page_length)
 
-    if (result.count === 0) {
-      res.status(200).send({
-        message: "No Data Found in Items",
-        data: result.rows,
-        payload: createPaginationNoData(page, total_pages, page_length, 0)
-      });
-    } else {
-      
-      res.status(200).send({
-        message: "Success",
-        data: result.rows,
-        payload: {
-          pagination: createPagination(page, total_pages, page_length, result.count)
-        }
-      });
-    }
-  });
+      if (result.count === 0) {
+        res.status(200).send({
+          message: "No Data Found in Items",
+          data: result.rows,
+          payload: createPaginationNoData(page, total_pages, page_length, 0)
+        });
+      } else {
+
+        res.status(200).send({
+          message: "Success",
+          data: result.rows,
+          payload: {
+            pagination: createPagination(page, total_pages, page_length, result.count)
+          }
+        });
+      }
+    });
 };
 
-const detail = (req,res) => {
+const detail = (req, res) => {
   var id = req.params.id;
-  
+
   Items.findOne({
-      attributes:[
-        'id',
-        'brand',
-        'model',
-        'warranty_duration',
-        'is_active',
-        'createdAt',
-        'updatedAt'
-      ],
-      where:{id:id}
-  }).then(result=>{
+    attributes: [
+      'id',
+      'brand',
+      'model',
+      'warranty_duration',
+      'is_active',
+      'createdAt',
+      'updatedAt'
+    ],
+    where: { id: id }
+  }).then(result => {
 
     res.status(200).send({
-        message:"Success",
-        data:result
+      message: "Success",
+      data: result
     });
   })
 }
 
-async function update (req,res) {
-    const existItem = await Items.findOne({
-        where:{
-          brand: req.body.brand,
-          model: {
-            [Op.iLike] : req.body.model
-          },
-            id: { [Op.ne]: req.body.id }
-        }
-    });
-
-    if(existItem){
-        if(existItem){
-            return res.status(200).send({
-                is_ok:false,
-                message:"Data is already exist"
-            });
-        }
-    }
-
-  const t = await sequelize.transaction();
-  try{
-      var data = {
-        brand:req.body.brand,
-        model:req.body.model,
-        is_active:req.body.is_active,
-        warranty_duration:req.body.warranty_duration
-      }
-      
-      console.log(data);
-      
-      await Items.update(data,{
-        where:{
-          id:req.body.id
-        },
-        transaction: t
-      });
-
-      await t.commit();
-      return res.status(200).send({
-          is_ok:true,
-          message:"Successfully saved"
-      });
-
-    }catch(error){
-        await t.rollback();
-        return res.status(200).send({
-            is_ok:false,
-            message:error.toString()
-        });
-    } 
-}
-
-async function create (req,res){
+async function update(req, res) {
   const existItem = await Items.findOne({
-      where:{
-          brand: where(fn('LOWER', col('brand')), fn('LOWER', req.body.brand)),
-          model: where(fn('LOWER', col('model')), fn('LOWER', req.body.model)),
-      }
+    where: {
+      brand: req.body.brand,
+      model: {
+        [Op.iLike]: req.body.model
+      },
+      id: { [Op.ne]: req.body.id }
+    }
   });
 
-  if(existItem){
+  if (existItem) {
+    if (existItem) {
       return res.status(200).send({
-          is_ok:false,
-          message:"Brand n Model is already exist"
+        is_ok: false,
+        message: "Data is already exist"
       });
+    }
   }
 
   const t = await sequelize.transaction();
-  try{
-      var data = {
-        brand:req.body.brand,
-        model:req.body.model,
-        warranty_duration:req.body.warranty_duration,
-        is_active:req.body.is_active
-      }
-      
-      await Items.create(data,{transaction: t});
+  try {
+    var data = {
+      brand: req.body.brand,
+      model: req.body.model,
+      is_active: req.body.is_active,
+      warranty_duration: req.body.warranty_duration
+    }
 
-      await t.commit();
-      return res.status(200).send({
-          is_ok:true,
-          message:"Successfully saved"
-      });
+    await Items.update(data, {
+      where: {
+        id: req.body.id
+      },
+      transaction: t
+    });
 
-    }catch(error){
-        await t.rollback();
-        return res.status(200).send({
-            is_ok:false,
-            message:error.toString()
-        });
-    } 
+    await t.commit();
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved"
+    });
+
+  } catch (error) {
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: error.toString()
+    });
+  }
 }
 
-const listBrand = (req,res) => {
+async function create(req, res) {
+  const existItem = await Items.findOne({
+    where: {
+      brand: where(fn('LOWER', col('brand')), fn('LOWER', req.body.brand)),
+      model: where(fn('LOWER', col('model')), fn('LOWER', req.body.model)),
+    }
+  });
+
+  if (existItem) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "Brand n Model is already exist"
+    });
+  }
+
+  const t = await sequelize.transaction();
+  try {
+    var data = {
+      brand: req.body.brand,
+      model: req.body.model,
+      warranty_duration: req.body.warranty_duration,
+      is_active: req.body.is_active
+    }
+
+    await Items.create(data, { transaction: t });
+
+    await t.commit();
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved"
+    });
+
+  } catch (error) {
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: error.toString()
+    });
+  }
+}
+
+const listBrand = (req, res) => {
 
   var param_order = ['brand', "asc"];
-  var where_query = {'is_active':true}
+  var where_query = { 'is_active': true }
 
   Items.findAll({
-      attributes:[
-        'brand',
-      ],
-      where: where_query,
-      order: [param_order],
-      group: ['brand'],
-      raw:true
+    attributes: [
+      'brand',
+    ],
+    where: where_query,
+    order: [param_order],
+    group: ['brand'],
+    raw: true
   })
-  .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Brand Found in Items",
-              data:result
-          })
-      }else{
-            const brandList = result.map(item => item.brand);
-            res.status(200).send({
-                message:"Success",
-                data:brandList
-            })
+    .then(result => {
+      if (result.count == 0) {
+        res.status(200).send({
+          message: "No Brand Found in Items",
+          data: result
+        })
+      } else {
+        const brandList = result.map(item => item.brand);
+        res.status(200).send({
+          message: "Success",
+          data: brandList
+        })
       }
-  });
+    });
 };
 
-const listModel = (req,res) => {
+const listModel = (req, res) => {
 
-    var param_order = ['model', "asc"];
-    var where_query = {
-        'is_active':true
-    }
+  var param_order = ['model', "asc"];
+  var where_query = {
+    'is_active': true
+  }
 
-    where_query = {
-        ...where_query,
-        brand:req.body.brand
-    }
-  
-    Items.findAll({
-        attributes:[
-          ['id','item_id'],
-          'model',
-          'warranty_duration'
-        ],
-        where: where_query,
-        order: [param_order],
-        raw:true
-    })
+  where_query = {
+    ...where_query,
+    brand: req.body.brand
+  }
+
+  Items.findAll({
+    attributes: [
+      ['id', 'item_id'],
+      'model',
+      'warranty_duration'
+    ],
+    where: where_query,
+    order: [param_order],
+    raw: true
+  })
     .then(result => {
-        if(result.count == 0){
-            res.status(200).send({
-                message:"No Model Found in Items",
-                data:result
-            })
-        }else{
-            res.status(200).send({
-                message:"Success",
-                data:result
-            })
-        }
+      if (result.count == 0) {
+        res.status(200).send({
+          message: "No Model Found in Items",
+          data: result
+        })
+      } else {
+        res.status(200).send({
+          message: "Success",
+          data: result
+        })
+      }
     });
-  };
+};
 
-const upload = async(req, res) => {
+const upload = async (req, res) => {
 
   const t = await sequelize.transaction();
 
-  try{
+  try {
     if (req.file == undefined) {
       return res.status(200).send({
         is_ok: false,
-        message: "Please upload a excel file!"});
+        message: "Please upload a excel file!"
+      });
     }
     let dir = __basedir + "/uploads/excel/" + req.file.filename;
     const file = xlsx.readFile(dir);
-    
+
     const sheets = file.SheetNames
 
     const sheetExists = sheets.includes('item');
 
-    if(!sheetExists){
+    if (!sheetExists) {
       return res.status(200).send({
         is_ok: false,
         message: `Missing 'item' sheet in the uploaded file`
@@ -313,53 +309,51 @@ const upload = async(req, res) => {
     const sheet = file.Sheets[sheets[0]];
 
     var result = [];
-    
-      let temp = xlsx.utils.sheet_to_json(file.Sheets['item'])
-      if(temp.length > 100){
-        fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
-          if (err) throw err;
-        
-          for (const file of files) {
-            fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
-              if (err) throw err;
-            });
-          }
-        });
 
-        return res.status(200).send({
-          is_ok: false,
-          message: "Maximum upload limit is 100 rows."
-        });
-      }
+    let temp = xlsx.utils.sheet_to_json(file.Sheets['item'])
+    if (temp.length > 100) {
+      fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
+        if (err) throw err;
 
-      if(temp.length < 1){
-        return res.status(200).send({
-          is_ok: false,
-          message: "The uploaded file is empty"
-        });
-      }
+        for (const file of files) {
+          fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
+            if (err) throw err;
+          });
+        }
+      });
 
-      const requiredColumns = ["No","Brand","Model","Is Active","Warranty Duration"]
+      return res.status(200).send({
+        is_ok: false,
+        message: "Maximum upload limit is 100 rows."
+      });
+    }
 
-      const resValid = validateHeaders(sheet,requiredColumns)
-      console.log(resValid);
+    if (temp.length < 1) {
+      return res.status(200).send({
+        is_ok: false,
+        message: "The uploaded file is empty"
+      });
+    }
 
-      if(!resValid.isValid){
-        return res.status(200).send({
-          is_ok: false,
-          message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
-        });
-      }
+    const requiredColumns = ["No", "Brand", "Model", "Is Active", "Warranty Duration"]
 
-      for(let j = 0; j < temp.length; j++){
-        console.log(temp[j]);
-        var resp = await updateOrCreate(j,temp[j],t);
-        result.push(resp);
-      }
-    
+    const resValid = validateHeaders(sheet, requiredColumns)
+
+    if (!resValid.isValid) {
+      return res.status(200).send({
+        is_ok: false,
+        message: "Wrong file template for column " + resValid.missingHeaders.join(", ")
+      });
+    }
+
+    for (let j = 0; j < temp.length; j++) {
+      var resp = await updateOrCreate(j, temp[j], t);
+      result.push(resp);
+    }
+
     fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
       if (err) throw err;
-    
+
       for (const file of files) {
         fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
           if (err) throw err;
@@ -371,106 +365,106 @@ const upload = async(req, res) => {
     return res.status(200).send({
       is_ok: true,
       message: "Successfully Upload : " + req.file.originalname,
-      data:result
+      data: result
     });
 
-    }catch(error){
-      console.log(error.toString());
-      await t.rollback();
-      return res.status(200).send({
-        is_ok: false,
-        message: "Could not upload the file: " + req.file.originalname,
-        error:error.toString()
-      });
-    }
-} 
+  } catch (error) {
+    console.log(error.toString());
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: "Could not upload the file: " + req.file.originalname,
+      error: error.toString()
+    });
+  }
+}
 
-const updateOrCreate = async(i,row,t)=>{
-  try{
-    if(!row.hasOwnProperty('Brand')) {
-      return {is_ok:false,message:"Brand is blank at row "+(i+1)}
-    }
-
-    if(!row.hasOwnProperty('Model')) {
-      return {is_ok:false,message:"Model is blank at row "+(i+1)}
+const updateOrCreate = async (i, row, t) => {
+  try {
+    if (!row.hasOwnProperty('Brand')) {
+      return { is_ok: false, message: "Brand is blank at row " + (i + 1) }
     }
 
-    if(!row.hasOwnProperty('Warranty Duration')) {
-      return {is_ok:false,message:"Warranty Duration is blank at row "+(i+1)}
+    if (!row.hasOwnProperty('Model')) {
+      return { is_ok: false, message: "Model is blank at row " + (i + 1) }
     }
 
-    if(!row.hasOwnProperty('Is Active')) {
-      return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
+    if (!row.hasOwnProperty('Warranty Duration')) {
+      return { is_ok: false, message: "Warranty Duration is blank at row " + (i + 1) }
     }
 
-    if(typeof row["Is Active"] === 'string'){
+    if (!row.hasOwnProperty('Is Active')) {
+      return { is_ok: false, message: "Is Active is blank at row " + (i + 1) }
+    }
+
+    if (typeof row["Is Active"] === 'string') {
 
       const value = row["Is Active"].toLowerCase();
-      if(!["true", "false"].includes(value)) {
-        return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+      if (!["true", "false"].includes(value)) {
+        return { is_ok: false, message: "Status is not valid at row " + (i + 1) }
       }
-  
-      if(value == "true"){
+
+      if (value == "true") {
         row["Is Active"] = true;
       }
-  
-      if(value == "false"){
+
+      if (value == "false") {
         row["Is Active"] = false;
       }
     }
 
 
     const existItems = await Items.findOne({
-      where:{
-        brand:where(fn('LOWER', col('brand')), fn('LOWER', row["Brand"])),
-        model:where(fn('LOWER', col('model')), fn('LOWER', row["Model"]))
+      where: {
+        brand: where(fn('LOWER', col('brand')), fn('LOWER', row["Brand"])),
+        model: where(fn('LOWER', col('model')), fn('LOWER', row["Model"]))
       },
       transaction: t
     })
 
     var storeData = {
-      brand:row["Brand"],
-      model:row["Model"],
-      warranty_duration:row["Warranty Duration"],
-      is_active:row["Is Active"],
+      brand: row["Brand"],
+      model: row["Model"],
+      warranty_duration: row["Warranty Duration"],
+      is_active: row["Is Active"],
     }
-  
-    if(existItems){
+
+    if (existItems) {
 
       let hasChanged = Object.keys(storeData).some(key => {
         // Ensure to handle the case where the key may not exist on existDC
         return storeData[key] !== existItems[key];
       });
-  
+
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes data at row '+(i+1) };
+        return { is_ok: false, message: 'No changes data at row ' + (i + 1) };
       }
-      
+
       await Items.update(storeData,
         {
-          where:{
-            id:existItems.id
+          where: {
+            id: existItems.id
           },
-          transaction:t
+          transaction: t
         }
       )
-      return {is_ok:true,message:`Successfully update at row ${(i+1)}`}
-    }else{
-      await Items.create(storeData,{transaction:t})
-      return {is_ok:true,message:`Successfully insert at row ${(i+1)}`}
+      return { is_ok: true, message: `Successfully update at row ${(i + 1)}` }
+    } else {
+      await Items.create(storeData, { transaction: t })
+      return { is_ok: true, message: `Successfully insert at row ${(i + 1)}` }
     }
-  
-  }catch(error){
-    return {is_ok:false,message:error.toString()};
+
+  } catch (error) {
+    return { is_ok: false, message: error.toString() };
   }
 }
 
-const download = async(req, res) => {
+const download = async (req, res) => {
 
   try {
     // Fetch all data from your data collection
     const result = await Items.findAll({
-      attributes:[
+      attributes: [
         'brand',
         'model',
         'is_active',
@@ -483,11 +477,11 @@ const download = async(req, res) => {
     const formattedResult = result.map((item, index) => {
 
       return {
-      No: index + 1, // Incremental number
-      'Brand':item.brand,
-      'Model': item.model, // Use the alias for dc_name
-      'Is Active': item.is_active ? 'TRUE' : 'FALSE',
-      'Warranty Duration':item.warranty_duration
+        No: index + 1, // Incremental number
+        'Brand': item.brand,
+        'Model': item.model, // Use the alias for dc_name
+        'Is Active': item.is_active ? 'TRUE' : 'FALSE',
+        'Warranty Duration': item.warranty_duration
       }
     });
 
@@ -516,12 +510,12 @@ const download = async(req, res) => {
 }
 
 module.exports = {
-    create,
-    list,
-    detail,
-    update,
-    listBrand,
-    listModel,
-    download,
-    upload
+  create,
+  list,
+  detail,
+  update,
+  listBrand,
+  listModel,
+  download,
+  upload
 }

@@ -30,8 +30,6 @@ const list = async (req, res) => {
   var column_sort = `assets.id`;
   var order = "asc"
 
-  console.log(req.body)
-
   if (req.body.hasOwnProperty("sort")) {
 
     if (req.body.sort == 'dc_name') {
@@ -89,8 +87,6 @@ const list = async (req, res) => {
 
   let where_query = `1 = 1`;
   let params = [];
-  console.log("===DCS===")
-  console.log(req.dcs);
   if (req.role_name != "admin") {
     if (req.dcs && req.dcs.length > 0) {
       const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
@@ -242,7 +238,6 @@ const list = async (req, res) => {
     const total_pages = Math.ceil(total_count / page_length)
 
     if (result.length === 0) {
-      console.log(result);
 
       return res.status(200).send({
         message: "No Data Found in Company",
@@ -250,9 +245,6 @@ const list = async (req, res) => {
         payload: createPaginationNoData(page, total_pages, page_length, 0)
       });
     } else {
-      console.log(page)
-      console.log(total_pages)
-
       const formattedRows = result.map((r) => {
         return {
           ...r,
@@ -355,8 +347,6 @@ const detailLog = async (req, res) => {
   const result = await sequelize.query(rawQueryLog, {
     type: sequelize.QueryTypes.SELECT,
   });
-
-  console.log(result);
 
   const formattedLogs = result.map((r) => {
     return {
@@ -756,7 +746,6 @@ const upload = async (req, res) => {
     const requiredColumns = ["No", "Serial Number", "Brand", "Model", "Store Code", "DC Code", "Delivery Date", "Is Active"]
 
     const resValid = validateHeaders(sheet, requiredColumns)
-    console.log(resValid);
 
     if (!resValid.isValid) {
       return res.status(200).send({
@@ -928,8 +917,6 @@ const updateOrCreate = async (i, row, t) => {
       return { is_ok: false, message: "DC Code is not exist at row " + (i + 1) }
     }
 
-    console.log("===EXIST STORE, EXIST DC===")
-    console.log(existStore.dc_id, existDC.id)
     if (existStore.dc_id != existDC.id) {
       return { is_ok: false, message: `${row["Store Code"]} is not under ${row["DC Code"]} at ` + (i + 1) }
     }
@@ -1037,8 +1024,25 @@ const updateOrCreate = async (i, row, t) => {
 const download = async (req, res) => {
 
   try {
+    let where_query = {};
+
+    if (req.role_name != "admin") {
+      if (req.dcs && req.dcs.length > 0) {
+        where_query.dc_id = {
+          [Op.in]: req.dcs
+        };
+      } else {
+        where_query.dc_id = {
+          [Op.in]: [0]
+        };
+      }
+
+      where_query['$dc.is_active$'] = true;
+    }
+
     // Fetch all data from your data collection
     const result = await Asset.findAll({
+      where: where_query,
       include: [
         {
           model: DC,

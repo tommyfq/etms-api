@@ -44,10 +44,9 @@ const imageStorage = multer.diskStorage({
 
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log(req.user_id);
     const avatarFolder = path.join(
       __basedir,
-      "/public/avatars", 
+      "/public/avatars",
       `${req.user_id}`
     );
     fs.mkdirSync(avatarFolder, { recursive: true });
@@ -60,10 +59,9 @@ const avatarStorage = multer.diskStorage({
 
 const publicImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log(req.ticketNo);
     const ticketFolder = path.join(
       __basedir,
-      "/public/uploads", 
+      "/public/uploads",
       `ticket_${req.ticketNo}`
     );
 

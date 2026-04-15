@@ -57,12 +57,6 @@ async function generateTicketNumber() {
 async function create(req, res) {
   const now = moment().utcOffset(7)
   const dueDate = now.add(3, 'days');
-  console.log('Request body:', req.body); // This should contain the fields sent in the form
-  console.log('Uploaded files:', req.files); // This will contain the uploaded files
-
-  console.log(req.files);
-
-  console.log(req.body);
 
   var userId = req.user_id
   const existAsset = await Asset.findOne({
@@ -100,7 +94,6 @@ async function create(req, res) {
     } else {
       emailArray = req.body.cc.split(',').map(email => email.trim());
     }
-    console.log(emailArray)
 
     var storeTicket = {
       title: req.body.title,
@@ -114,7 +107,6 @@ async function create(req, res) {
       due_date: dueDate,
       customer_reference_no: req.body.customer_reference_no
     }
-    console.log(storeTicket);
     const newTicket = await Ticket.create(storeTicket, { transaction: t });
 
     const attachments = req.files.map((file, index) => ({
@@ -210,7 +202,6 @@ const list = async (req, res) => {
     column_sort
     order
   */
-  console.log(req.dcs);
 
   var page = parseInt(req.body.page, 10);
   var page_length = parseInt(req.body.items_per_page, 10); //default 20
@@ -345,8 +336,6 @@ const list = async (req, res) => {
         payload: createPaginationNoData(page, total_pages, page_length, 0)
       });
     } else {
-      console.log(page)
-      console.log(total_pages)
 
       const formattedRows = result.map((r) => {
         return {
@@ -407,8 +396,6 @@ const list = async (req, res) => {
         payload: createPaginationNoData(page, total_pages, page_length, 0)
       });
     } else {
-      console.log(page)
-      console.log(total_pages)
       
       res.status(200).send({
         message: "Success",
@@ -580,7 +567,6 @@ const detail = (req, res) => {
         createdAt: moment(log.createdAt).utcOffset(7).format('DD MMM YY, HH:mm:ss')
       }))
     }
-    console.log(formattedResult)
 
     res.status(200).send({
       message: "Success",
@@ -591,8 +577,6 @@ const detail = (req, res) => {
 
 async function update(req, res) {
 
-  console.log("===BODY===")
-  console.log(req.body);
   const now = moment().utcOffset(7);
 
   const existTicket = await Ticket.findOne({
@@ -681,7 +665,6 @@ async function update(req, res) {
     }
 
     if (existTicket.comment_client != req.body.comment_client) {
-      console.log("MASUK")
       data['comment_client'] = req.body.comment_client;
       data['comment_client_date'] = now
       data['comment_client_by'] = req.email;
@@ -774,8 +757,6 @@ async function update(req, res) {
       },
       transaction: t
     });
-
-    console.log(storeLog);
 
     await TicketLog.create(storeLog, {
       transaction: t
@@ -873,8 +854,6 @@ const upload = async (req, res) => {
     const sheets = file.SheetNames
 
     var result = [];
-
-    console.log(sheets)
     
     const t = await sequelize.transaction();
   
@@ -883,7 +862,6 @@ const upload = async (req, res) => {
       let temp = reader.utils.sheet_to_json(file.Sheets['dc - store'])
       
       for(let j = 0; j < temp.length; j++){
-        //console.log(temp)
         var resp = null;
         resp = await updateOrCreateStore(j,temp[j],t);
        

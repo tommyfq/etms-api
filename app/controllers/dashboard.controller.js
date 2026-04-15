@@ -7,33 +7,32 @@ const { createPagination } = require("../helpers/pagination");
 const { isSlaCompliant } = require("../helpers/ticket");
 
 const slaLimits = {
-    Low: 1,     // Low priority should be resolved within 1 day
-    Medium: 3,  // Medium priority should be resolved within 3 days
-    High: 5,    // High priority should be resolved within 5 days
+  Low: 1,     // Low priority should be resolved within 1 day
+  Medium: 3,  // Medium priority should be resolved within 3 days
+  High: 5,    // High priority should be resolved within 5 days
 };
 
 const getTicketCountByStatus = async (req, res) => {
-  
-    const predefinedStatuses = ['open', 'in progress', 'on hold'];
 
-    let where_query = "1=1";
-    let params = [];
+  const predefinedStatuses = ['open', 'in progress', 'on hold'];
 
-    // Dynamically add placeholders for the predefined statuses
-    const statusPlaceholders = predefinedStatuses.map((_, index) => `$${params.length + index + 1}`).join(', ');
-    where_query += ` AND tickets.status IN (${statusPlaceholders})`;
-    params.push(...predefinedStatuses);
+  let where_query = "1=1";
+  let params = [];
 
-    console.log(req.dcs);
-    if (req.dcs && req.dcs.length > 0) {
-        // Dynamically add placeholders for DCs
-        const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-        where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
-        params.push(...req.dcs);
-    }
+  // Dynamically add placeholders for the predefined statuses
+  const statusPlaceholders = predefinedStatuses.map((_, index) => `$${params.length + index + 1}`).join(', ');
+  where_query += ` AND tickets.status IN (${statusPlaceholders})`;
+  params.push(...predefinedStatuses);
 
-    // Build the raw SQL query to count tickets by status
-    const rawQuery = `
+  if (req.dcs && req.dcs.length > 0) {
+    // Dynamically add placeholders for DCs
+    const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+    where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+    params.push(...req.dcs);
+  }
+
+  // Build the raw SQL query to count tickets by status
+  const rawQuery = `
         SELECT 
         status,
         COUNT(*) AS count
@@ -44,169 +43,164 @@ const getTicketCountByStatus = async (req, res) => {
         GROUP BY status
     `;
 
-    // Execute the raw query with the predefined statuses as parameter
-    const ticketCounts = await sequelize.query(rawQuery, {
-        bind: params,
-        type: Sequelize.QueryTypes.SELECT,
-    });
-  
-    console.log(ticketCounts)
-    // Convert ticket counts into an object with status as key and count as value
-    const statusCountMap = ticketCounts.reduce((acc, ticket) => {
-        console.log(ticket)
-      acc[ticket.status] = parseInt(ticket.count, 10);
-      return acc;
-    }, {});
-  
-    // Create the final result with all predefined statuses, ensuring all have a count
-    const result = predefinedStatuses.map(status => ({
-      status: status,
-      count: statusCountMap[status] || 0, // Set to 0 if the status is not found
-    }));
-  
-    // Format the result and calculate the total count
-    const total = result.reduce((sum, status) => sum + status.count, 0);
-  
-    // Return the response
-    return res.status(200).send({
-      is_ok: true,
-      message: "Successfully retrieved ticket counts by status",
-      data: {
-        ticketCounts: result,
-        total: total, // Add total count of tickets
-      },
-    });
-  };
+  // Execute the raw query with the predefined statuses as parameter
+  const ticketCounts = await sequelize.query(rawQuery, {
+    bind: params,
+    type: Sequelize.QueryTypes.SELECT,
+  });
 
-  /*
+  // Convert ticket counts into an object with status as key and count as value
+  const statusCountMap = ticketCounts.reduce((acc, ticket) => {
+    acc[ticket.status] = parseInt(ticket.count, 10);
+    return acc;
+  }, {});
+
+  // Create the final result with all predefined statuses, ensuring all have a count
+  const result = predefinedStatuses.map(status => ({
+    status: status,
+    count: statusCountMap[status] || 0, // Set to 0 if the status is not found
+  }));
+
+  // Format the result and calculate the total count
+  const total = result.reduce((sum, status) => sum + status.count, 0);
+
+  // Return the response
+  return res.status(200).send({
+    is_ok: true,
+    message: "Successfully retrieved ticket counts by status",
+    data: {
+      ticketCounts: result,
+      total: total, // Add total count of tickets
+    },
+  });
+};
+
+/*
 const getTicketChartByYear = async (req,res) => {
-    console.log(req.params)
-    const year = req.params.year
+  const year = req.params.year
 
-    let where_query = "1=1";
-    let params = []
+  let where_query = "1=1";
+  let params = []
 
-    where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
-    params.push(year);
+  where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
+  params.push(year);
 
-    if (req.dcs && req.dcs.length > 0) {
-        // Dynamically add placeholders for DCs
-        const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-        where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
-        params.push(...req.dcs);
+  if (req.dcs && req.dcs.length > 0) {
+      // Dynamically add placeholders for DCs
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
+      params.push(...req.dcs);
+  }
+
+  const rawData = await sequelize.query(
+      `
+      SELECT 
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 1 THEN 1 ELSE 0 END) AS INT) AS Jan,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 2 THEN 1 ELSE 0 END) AS INT) AS Feb,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 3 THEN 1 ELSE 0 END) AS INT) AS Mar,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 4 THEN 1 ELSE 0 END) AS INT) AS Apr,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 5 THEN 1 ELSE 0 END) AS INT) AS May,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 6 THEN 1 ELSE 0 END) AS INT) AS Jun,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 7 THEN 1 ELSE 0 END) AS INT) AS Jul,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 8 THEN 1 ELSE 0 END) AS INT) AS Aug,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 9 THEN 1 ELSE 0 END) AS INT) AS Sep,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 10 THEN 1 ELSE 0 END) AS INT) AS Oct,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 11 THEN 1 ELSE 0 END) AS INT) AS Nov,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 12 THEN 1 ELSE 0 END) AS INT) AS Dec
+      FROM 
+          tickets
+      LEFT JOIN assets ON assets.id = tickets.asset_id
+      LEFT JOIN dcs ON dcs.id = assets.dc_id
+      WHERE 
+          ${where_query}
+      `,
+      {
+        bind: params, // Replaces :year with the value from the query
+        type: Sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    // Transform data into the desired structure
+    const chartData = rawData.map(item => {
+        console.log(item);
+        return [item.jan, item.feb, item.mar, item.apr, item.may, item.jun, item.jul, item.aug, item.sep, item.oct, item.nov, item.dec]
+    });
+
+
+    const rawDataSLA = await sequelize.query(
+      `
+      SELECT 
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 1 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jan,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 2 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Feb,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 3 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Mar,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 4 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Apr,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 5 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS May,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 6 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jun,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 7 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jul,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 8 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Aug,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 9 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Sep,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 10 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Oct,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 11 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Nov,
+          CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 12 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Dec
+      FROM tickets
+      LEFT JOIN assets ON assets.id = tickets.asset_id
+      LEFT JOIN dcs ON dcs.id = assets.dc_id
+      WHERE 
+          ${where_query}
+      `,
+      {
+        bind: params, // Replaces :year with the value from the query
+        type: Sequelize.QueryTypes.SELECT,
+      }
+    );
+
+    const chartDataSLA = rawDataSLA.map(item => {
+        console.log(item);
+        return [item.jan, item.feb, item.mar, item.apr, item.may, item.jun, item.jul, item.aug, item.sep, item.oct, item.nov, item.dec]
+    });
+
+    const years = await Ticket.findAll({
+      attributes: [
+        [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt'))), 'year'],
+      ],
+      order: [[sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt')), 'DESC']],
+      raw: true, // Return plain objects instead of Sequelize instances
+    });
+ 
+    const yearList = years.map((entry) => entry.year);
+
+    const currentYear = new Date().getFullYear();
+    if (!yearList.includes(currentYear)) {
+      yearList.push(currentYear);
     }
 
-    console.log(params);
-
-    const rawData = await sequelize.query(
-        `
-        SELECT 
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 1 THEN 1 ELSE 0 END) AS INT) AS Jan,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 2 THEN 1 ELSE 0 END) AS INT) AS Feb,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 3 THEN 1 ELSE 0 END) AS INT) AS Mar,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 4 THEN 1 ELSE 0 END) AS INT) AS Apr,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 5 THEN 1 ELSE 0 END) AS INT) AS May,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 6 THEN 1 ELSE 0 END) AS INT) AS Jun,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 7 THEN 1 ELSE 0 END) AS INT) AS Jul,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 8 THEN 1 ELSE 0 END) AS INT) AS Aug,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 9 THEN 1 ELSE 0 END) AS INT) AS Sep,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 10 THEN 1 ELSE 0 END) AS INT) AS Oct,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 11 THEN 1 ELSE 0 END) AS INT) AS Nov,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 12 THEN 1 ELSE 0 END) AS INT) AS Dec
-        FROM 
-            tickets
-        LEFT JOIN assets ON assets.id = tickets.asset_id
-        LEFT JOIN dcs ON dcs.id = assets.dc_id
-        WHERE 
-            ${where_query}
-        `,
-        {
-          bind: params, // Replaces :year with the value from the query
-          type: Sequelize.QueryTypes.SELECT,
-        }
-      );
-
-      // Transform data into the desired structure
-      const chartData = rawData.map(item => {
-          console.log(item);
-          return [item.jan, item.feb, item.mar, item.apr, item.may, item.jun, item.jul, item.aug, item.sep, item.oct, item.nov, item.dec]
-      });
-
-
-      const rawDataSLA = await sequelize.query(
-        `
-        SELECT 
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 1 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jan,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 2 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Feb,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 3 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Mar,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 4 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Apr,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 5 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS May,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 6 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jun,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 7 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Jul,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 8 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Aug,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 9 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Sep,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 10 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Oct,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 11 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Nov,
-            CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 12 AND (closed_at - tickets."createdAt") < INTERVAL '3 days' THEN 1 ELSE 0 END) AS INT) AS Dec
-        FROM tickets
-        LEFT JOIN assets ON assets.id = tickets.asset_id
-        LEFT JOIN dcs ON dcs.id = assets.dc_id
-        WHERE 
-            ${where_query}
-        `,
-        {
-          bind: params, // Replaces :year with the value from the query
-          type: Sequelize.QueryTypes.SELECT,
-        }
-      );
-
-      const chartDataSLA = rawDataSLA.map(item => {
-          console.log(item);
-          return [item.jan, item.feb, item.mar, item.apr, item.may, item.jun, item.jul, item.aug, item.sep, item.oct, item.nov, item.dec]
-      });
-
-      const years = await Ticket.findAll({
-        attributes: [
-          [sequelize.fn('DISTINCT', sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt'))), 'year'],
-        ],
-        order: [[sequelize.fn('DATE_PART', 'YEAR', sequelize.col('createdAt')), 'DESC']],
-        raw: true, // Return plain objects instead of Sequelize instances
-      });
-  
-      const yearList = years.map((entry) => entry.year);
-
-      const currentYear = new Date().getFullYear();
-      if (!yearList.includes(currentYear)) {
-        yearList.push(currentYear);
-      }
-
-    return res.status(200).send({
-        is_ok:true,
-        message:"Successfully saved",
-        data: {chartData : chartData[0], yearList:yearList, chartDataSLA:chartDataSLA[0]}
-    });
+  return res.status(200).send({
+      is_ok:true,
+      message:"Successfully saved",
+      data: {chartData : chartData[0], yearList:yearList, chartDataSLA:chartDataSLA[0]}
+  });
 }
 */
 
 const getTicketChartByYear = async (req, res) => {
-    try {
-        const year = req.params.year;
-        let where_query = "1=1";
-        let params = [];
+  try {
+    const year = req.params.year;
+    let where_query = "1=1";
+    let params = [];
 
-        // 1. Build Query Parameters
-        where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
-        params.push(year);
+    // 1. Build Query Parameters
+    where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
+    params.push(year);
 
-        if (req.dcs && req.dcs.length > 0) {
-            const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-            where_query += ` AND assets.dc_id IN (${dcPlaceholders})`;
-            params.push(...req.dcs);
-        }
+    if (req.dcs && req.dcs.length > 0) {
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND assets.dc_id IN (${dcPlaceholders})`;
+      params.push(...req.dcs);
+    }
 
-        // 2. Fetch Total Ticket Counts (Efficient SQL)
-        const rawData = await sequelize.query(
-            `
+    // 2. Fetch Total Ticket Counts (Efficient SQL)
+    const rawData = await sequelize.query(
+      `
             SELECT 
                 CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 1 THEN 1 ELSE 0 END) AS INT) AS Jan,
                 CAST(SUM(CASE WHEN EXTRACT(MONTH FROM tickets."createdAt") = 2 THEN 1 ELSE 0 END) AS INT) AS Feb,
@@ -225,23 +219,23 @@ const getTicketChartByYear = async (req, res) => {
             LEFT JOIN dcs ON dcs.id = assets.dc_id
             WHERE ${where_query}
             `,
-            { bind: params, type: Sequelize.QueryTypes.SELECT }
-        );
+      { bind: params, type: Sequelize.QueryTypes.SELECT }
+    );
 
-        const chartData = rawData.map(item => Object.values(item)); // Simpler conversion to array
+    const chartData = rawData.map(item => Object.values(item)); // Simpler conversion to array
 
-        // 3. SLA Calculation
-        
-        // A. Fetch Holidays (Optimization: Cache this if possible, otherwise simple query is fine)
-        const holidaysRaw = await sequelize.query(
-            `SELECT date FROM holidays WHERE EXTRACT(YEAR FROM date) = $1`,
-            { bind: [year], type: Sequelize.QueryTypes.SELECT }
-        );
-        const holidays = holidaysRaw.map(h => moment(h.date).format('YYYY-MM-DD'));
+    // 3. SLA Calculation
 
-        // B. Fetch Candidates (Only needed columns)
-        const slaCandidates = await sequelize.query(
-            `
+    // A. Fetch Holidays (Optimization: Cache this if possible, otherwise simple query is fine)
+    const holidaysRaw = await sequelize.query(
+      `SELECT date FROM holidays WHERE EXTRACT(YEAR FROM date) = $1`,
+      { bind: [year], type: Sequelize.QueryTypes.SELECT }
+    );
+    const holidays = holidaysRaw.map(h => moment(h.date).format('YYYY-MM-DD'));
+
+    // B. Fetch Candidates (Only needed columns)
+    const slaCandidates = await sequelize.query(
+      `
             SELECT 
                 EXTRACT(MONTH FROM tickets."createdAt") as month,
                 tickets."createdAt",
@@ -251,47 +245,47 @@ const getTicketChartByYear = async (req, res) => {
             LEFT JOIN dcs ON dcs.id = assets.dc_id
             WHERE ${where_query} AND tickets.closed_at IS NOT NULL
             `,
-            { bind: params, type: Sequelize.QueryTypes.SELECT }
-        );
+      { bind: params, type: Sequelize.QueryTypes.SELECT }
+    );
 
-        // C. Process SLA in JS
-        let slaCounts = new Array(12).fill(0);
+    // C. Process SLA in JS
+    let slaCounts = new Array(12).fill(0);
 
-        slaCandidates.forEach(ticket => {
-            if (isSlaCompliant(ticket.createdAt, ticket.closed_at, holidays)) {
-                // Determine array index (Month 1 = Index 0)
-                const monthIndex = parseInt(ticket.month) - 1;
-                if (monthIndex >= 0 && monthIndex <= 11) {
-                    slaCounts[monthIndex]++;
-                }
-            }
-        });
-
-        // 4. Get Year List
-        const years = await sequelize.query(
-            `SELECT DISTINCT EXTRACT(YEAR FROM "createdAt") as year FROM tickets ORDER BY year DESC`,
-            { type: Sequelize.QueryTypes.SELECT }
-        );
-        
-        const yearList = years.map(entry => entry.year);
-        if (!yearList.includes(new Date().getFullYear())) {
-            yearList.push(new Date().getFullYear());
+    slaCandidates.forEach(ticket => {
+      if (isSlaCompliant(ticket.createdAt, ticket.closed_at, holidays)) {
+        // Determine array index (Month 1 = Index 0)
+        const monthIndex = parseInt(ticket.month) - 1;
+        if (monthIndex >= 0 && monthIndex <= 11) {
+          slaCounts[monthIndex]++;
         }
+      }
+    });
 
-        return res.status(200).send({
-            is_ok: true,
-            message: "Successfully saved",
-            data: { 
-                chartData: chartData[0], 
-                yearList: yearList, 
-                chartDataSLA: slaCounts // Pass the single array
-            }
-        });
+    // 4. Get Year List
+    const years = await sequelize.query(
+      `SELECT DISTINCT EXTRACT(YEAR FROM "createdAt") as year FROM tickets ORDER BY year DESC`,
+      { type: Sequelize.QueryTypes.SELECT }
+    );
 
-    } catch (error) {
-        console.error("Error fetching ticket chart:", error);
-        return res.status(500).send({ is_ok: false, message: "Internal Server Error" });
+    const yearList = years.map(entry => entry.year);
+    if (!yearList.includes(new Date().getFullYear())) {
+      yearList.push(new Date().getFullYear());
     }
+
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved",
+      data: {
+        chartData: chartData[0],
+        yearList: yearList,
+        chartDataSLA: slaCounts // Pass the single array
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching ticket chart:", error);
+    return res.status(500).send({ is_ok: false, message: "Internal Server Error" });
+  }
 };
 
 /*
@@ -374,36 +368,36 @@ const getSlaTicketCounts = async (req,res) => {
 */
 
 const getSlaTicketCounts = async (req, res) => {
-    try {
-        const year = req.params.year || new Date().getFullYear();
+  try {
+    const year = req.params.year || new Date().getFullYear();
 
-        // 1. Build Query Filters
-        let where_query = `1=1 AND tickets."closed_at" IS NOT NULL`;
-        let params = [];
+    // 1. Build Query Filters
+    let where_query = `1=1 AND tickets."closed_at" IS NOT NULL`;
+    let params = [];
 
-        // Ensure we filter by year to get relevant data and matching holidays
-        // (I uncommented this to ensure performance and accuracy)
-        where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
-        params.push(year);
+    // Ensure we filter by year to get relevant data and matching holidays
+    // (I uncommented this to ensure performance and accuracy)
+    where_query += ` AND EXTRACT(YEAR FROM tickets."createdAt") = $${params.length + 1}`;
+    params.push(year);
 
-        // Filter by DCs
-        if (req.dcs && req.dcs.length > 0) {
-            const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
-            where_query += ` AND assets.dc_id IN (${dcPlaceholders})`; 
-            params.push(...req.dcs);
-        }
+    // Filter by DCs
+    if (req.dcs && req.dcs.length > 0) {
+      const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
+      where_query += ` AND assets.dc_id IN (${dcPlaceholders})`;
+      params.push(...req.dcs);
+    }
 
-        // 2. Fetch Holidays for the specific year
-        const holidaysRaw = await sequelize.query(
-            `SELECT date FROM holidays WHERE EXTRACT(YEAR FROM date) = $1`,
-            { bind: [year], type: Sequelize.QueryTypes.SELECT }
-        );
-        const holidays = holidaysRaw.map(h => moment(h.date).format('YYYY-MM-DD'));
+    // 2. Fetch Holidays for the specific year
+    const holidaysRaw = await sequelize.query(
+      `SELECT date FROM holidays WHERE EXTRACT(YEAR FROM date) = $1`,
+      { bind: [year], type: Sequelize.QueryTypes.SELECT }
+    );
+    const holidays = holidaysRaw.map(h => moment(h.date).format('YYYY-MM-DD'));
 
-        // 3. Fetch Raw Ticket Data (Dates only)
-        // We select only what we need to minimize memory usage
-        const rawTickets = await sequelize.query(
-            `
+    // 3. Fetch Raw Ticket Data (Dates only)
+    // We select only what we need to minimize memory usage
+    const rawTickets = await sequelize.query(
+      `
             SELECT 
                 tickets."createdAt",
                 tickets."closed_at"
@@ -412,55 +406,55 @@ const getSlaTicketCounts = async (req, res) => {
             LEFT JOIN dcs ON dcs.id = assets.dc_id
             WHERE ${where_query}
             `,
-            {
-                bind: params,
-                type: Sequelize.QueryTypes.SELECT,
-            }
-        );
+      {
+        bind: params,
+        type: Sequelize.QueryTypes.SELECT,
+      }
+    );
 
-        // 4. Calculate Counts in JavaScript
-        let total_tickets = 0;
-        let sla_performed = 0;
-        let sla_not_performed = 0;
+    // 4. Calculate Counts in JavaScript
+    let total_tickets = 0;
+    let sla_performed = 0;
+    let sla_not_performed = 0;
 
-        rawTickets.forEach(ticket => {
-            total_tickets++;
+    rawTickets.forEach(ticket => {
+      total_tickets++;
 
-            // Check compliance using the helper
-            const compliant = isSlaCompliant(ticket.createdAt, ticket.closed_at, holidays);
+      // Check compliance using the helper
+      const compliant = isSlaCompliant(ticket.createdAt, ticket.closed_at, holidays);
 
-            if (compliant) {
-                sla_performed++;
-            } else {
-                sla_not_performed++;
-            }
-        });
+      if (compliant) {
+        sla_performed++;
+      } else {
+        sla_not_performed++;
+      }
+    });
 
-        // 5. Construct Response Data
-        const responseData = {
-            total_tickets: total_tickets,
-            sla_performed: sla_performed,
-            sla_not_performed: sla_not_performed
-        };
+    // 5. Construct Response Data
+    const responseData = {
+      total_tickets: total_tickets,
+      sla_performed: sla_performed,
+      sla_not_performed: sla_not_performed
+    };
 
-        return res.status(200).send({
-            is_ok: true,
-            message: "Successfully saved",
-            data: responseData
-        });
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved",
+      data: responseData
+    });
 
-    } catch (error) {
-        console.error('Error fetching SLA ticket counts:', error);
-        // It is better to return a 500 error than throw in an async controller
-        return res.status(500).send({
-             is_ok: false, 
-             message: "Internal Server Error", 
-             error: error.message 
-        });
-    }
+  } catch (error) {
+    console.error('Error fetching SLA ticket counts:', error);
+    // It is better to return a 500 error than throw in an async controller
+    return res.status(500).send({
+      is_ok: false,
+      message: "Internal Server Error",
+      error: error.message
+    });
+  }
 };
 
-const getListRepairAsset = async (req,res) => {
+const getListRepairAsset = async (req, res) => {
 
   let page = parseInt(req.body.page, 10);
   var page_length = req.body.items_per_page; //default 20
@@ -468,30 +462,30 @@ const getListRepairAsset = async (req,res) => {
   var order = "asc"
   let params = [];
   let where_query = `1 = 1`;
-  
-  if(req.body.hasOwnProperty("sort")){
-    
-    if(req.body.sort == 'asset_count'){
+
+  if (req.body.hasOwnProperty("sort")) {
+
+    if (req.body.sort == 'asset_count') {
       column_sort = `3`
-    }else if(req.body.sort == 'active_asset_count'){
+    } else if (req.body.sort == 'active_asset_count') {
       column_sort = `4`
-    }else if(req.body.sort == 'repaired_asset_count'){
+    } else if (req.body.sort == 'repaired_asset_count') {
       column_sort = `5`
-    }else if(req.body.sort == 'percentage'){
+    } else if (req.body.sort == 'percentage') {
       column_sort = `6`
-    }else{
+    } else {
       column_sort = `s.${req.body.sort}`
     }
   }
 
-  if(req.body.hasOwnProperty("order")){
+  if (req.body.hasOwnProperty("order")) {
     order = req.body.order
   }
 
   if (req.body.hasOwnProperty("search") && req.body.search) {
     const searchParamIndex = params.length + 1;
     const searchValue = `%${req.body.search}%`;
-  
+
     where_query += ` AND (
       s.store_code ILIKE $${searchParamIndex} OR 
       s.store_name ILIKE $${searchParamIndex}
@@ -499,7 +493,7 @@ const getListRepairAsset = async (req,res) => {
     params.push(searchValue); // Bind the same search value for both brand and model
   }
 
-  
+
 
   if (req.dcs && req.dcs.length > 0) {
 
@@ -508,13 +502,11 @@ const getListRepairAsset = async (req,res) => {
     params = [...params, ...req.dcs];
   }
 
-  console.log("===ROLE_NAME===")
-  console.log(req.role_name)
-  if(req.role_name != "admin"){
+  if (req.role_name != "admin") {
     where_query += ` AND dcs.is_active = true`
   }
 
-  try{
+  try {
     const countQuery = `
     SELECT 
           COUNT(DISTINCT s.store_code) as total
@@ -528,7 +520,7 @@ const getListRepairAsset = async (req,res) => {
       bind: params,
       type: sequelize.QueryTypes.SELECT,
     });
-    
+
     const totalRows = countResult.length > 0 ? countResult[0].total : 0;
 
     if (totalRows === 0) {
@@ -589,45 +581,42 @@ const getListRepairAsset = async (req,res) => {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `, {
       bind: params,
-      type: Sequelize.QueryTypes.SELECT 
+      type: Sequelize.QueryTypes.SELECT
     });
 
     const total_count = totalRows; // Total number of items
     const total_pages = Math.ceil(total_count / page_length)
 
-    console.log("===CREATE_PAGINATION===")
-    console.log(page,total_pages,page_length,total_count);
-    console.log(createPagination(page, total_pages, page_length, total_count));
-    if(result.length > 0){
+    if (result.length > 0) {
 
       return res.status(200).send({
-          message: "Success",
-          data: result,
-          payload: {
-            pagination: createPagination(page, total_pages, page_length, total_count)
-          }
-        });
+        message: "Success",
+        data: result,
+        payload: {
+          pagination: createPagination(page, total_pages, page_length, total_count)
+        }
+      });
     }
 
     return res.status(200).send({
-        is_ok:false,
-        message:"No assets under repair",
-        data: result
+      is_ok: false,
+      message: "No assets under repair",
+      data: result
     })
   } catch (error) {
-      console.error('Error fetching tickets:', error);
-      return res.status(200).send({
-        message: "error",
-        data: error
-      });
-      
+    console.error('Error fetching tickets:', error);
+    return res.status(200).send({
+      message: "error",
+      data: error
+    });
+
   }
-  
+
 }
 
-  module.exports = {
-    getTicketCountByStatus,
-    getTicketChartByYear,
-    getSlaTicketCounts,
-    getListRepairAsset
+module.exports = {
+  getTicketCountByStatus,
+  getTicketChartByYear,
+  getSlaTicketCounts,
+  getListRepairAsset
 }

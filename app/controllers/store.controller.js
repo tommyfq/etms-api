@@ -7,11 +7,11 @@ const fs = require("fs");
 const path = require("path");
 const xlsx = require('xlsx');
 const { sequelize, Sequelize } = require("../models");
-const {fn,where,col} = db.Sequelize
+const { fn, where, col } = db.Sequelize
 const { createPagination, createPaginationNoData } = require("../helpers/pagination");
 const { validateHeaders } = require('../helpers/general')
 
-const list = async (req,res) => {
+const list = async (req, res) => {
   /* search by dc name */
   /* search by company name */
 
@@ -31,42 +31,38 @@ const list = async (req,res) => {
   let where_query = `1 = 1`;
   let params = [];
 
-  if(req.body.hasOwnProperty("sort")){
+  if (req.body.hasOwnProperty("sort")) {
     column_sort = req.body.sort
   }
 
-  if(req.body.hasOwnProperty("order")){
+  if (req.body.hasOwnProperty("order")) {
     order = req.body.order
   }
 
   //var where_query = {};
-  
+
   var param_order = [];
 
-  console.log(column_sort);
-  
-  if(req.body.hasOwnProperty("sort")){
-    if(req.body.sort == 'dc_name'){
+  if (req.body.hasOwnProperty("sort")) {
+    if (req.body.sort == 'dc_name') {
       column_sort = `dcs.dc_name`
-    }else if(req.body.sort == 'company_name'){
+    } else if (req.body.sort == 'company_name') {
       column_sort = `companies.company_name`
-    }else{
+    } else {
       column_sort = `stores.${req.body.sort}`
     }
   }
 
   if (req.role_name != "admin") {
-    if(req.company_id){
-      console.log("===COMPANY_ID===");
-      console.log(req.company_id)
+    if (req.company_id) {
       where_query += ` AND dcs.company_id = ${req.company_id}`
     }
 
-    if (req.dcs && req.dcs.length > 0){
+    if (req.dcs && req.dcs.length > 0) {
       const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
       where_query += ` AND stores.dc_id IN (${dcPlaceholders})`; // Add filter for dc_id
       params = [...params, ...req.dcs];
-    }else{
+    } else {
       where_query += ` AND stores.dc_id IN (0)`
     }
   }
@@ -169,25 +165,24 @@ const list = async (req,res) => {
 
   let isFilterDC = false
 
-  if(req.body.hasOwnProperty("filter_dcs")){
-    if(typeof req.body.filter_dcs === "string"){
-      if(req.body.filter_dcs != ""){
+  if (req.body.hasOwnProperty("filter_dcs")) {
+    if (typeof req.body.filter_dcs === "string") {
+      if (req.body.filter_dcs != "") {
         isFilterDC = true
         where_query += ` AND stores.dc_id IN (${req.body.filter_dcs})`; // Add filter for dc_id
       }
     }
   }
 
-  if(!isFilterDC){
-    if(req.body.hasOwnProperty("filter_comp")){
-      if(typeof req.body.filter_comp === "string"){
-        if(req.body.filter_comp != ""){
+  if (!isFilterDC) {
+    if (req.body.hasOwnProperty("filter_comp")) {
+      if (typeof req.body.filter_comp === "string") {
+        if (req.body.filter_comp != "") {
           where_query += ` AND dcs.company_id = ${req.body.filter_comp}`;
         }
       }
     }
   }
-  console.log(where_query);
 
   // if (req.dcs && req.dcs.length > 0) {
   //   const dcPlaceholders = req.dcs.map((_, index) => `$${params.length + index + 1}`).join(', ');
@@ -195,13 +190,13 @@ const list = async (req,res) => {
   //   params = [...params, ...req.dcs];
   // }
 
-  if(req.role_name != "admin"){
+  if (req.role_name != "admin") {
     where_query += ` AND dcs.is_active = true`
   }
-  
-  if(req.body.hasOwnProperty("filter_is_active")){
-    if(typeof req.body.filter_is_active === "string"){
-      if(req.body.filter_is_active != ""){
+
+  if (req.body.hasOwnProperty("filter_is_active")) {
+    if (typeof req.body.filter_is_active === "string") {
+      if (req.body.filter_is_active != "") {
         where_query += ` AND stores.is_active = ${req.body.filter_is_active}`
       }
     }
@@ -210,7 +205,7 @@ const list = async (req,res) => {
   if (req.body.hasOwnProperty("search") && req.body.search) {
     const searchParamIndex = params.length + 1;
     const searchValue = `%${req.body.search}%`;
-  
+
     where_query += ` AND (
       dcs.dc_name ILIKE $${searchParamIndex} OR 
       stores.store_name ILIKE $${searchParamIndex} OR 
@@ -251,7 +246,7 @@ const list = async (req,res) => {
     bind: params,
     type: sequelize.QueryTypes.SELECT,
   });
-  
+
   // Get the total count from the query result
   const totalRows = countResult[0].total;
 
@@ -263,7 +258,7 @@ const list = async (req,res) => {
     bind: params,
     type: sequelize.QueryTypes.SELECT,
   });
-    
+
   const total_count = totalRows; // Total number of items
   const total_pages = Math.ceil(total_count / page_length)
 
@@ -286,211 +281,212 @@ const list = async (req,res) => {
   //});
 };
 
-const detail = (req,res) => {
+const detail = (req, res) => {
   var id = req.params.id;
-  
+
   Store.findOne({
-      include: [
-        { 
-          model: DC, 
-          as : 'dc',
-          attributes: []
-        },
-      ],
-      attributes:[
-        'id',
-        'store_code',
-        'store_name',
-        'is_active',
-        'address',
-        'createdAt',
-        'updatedAt',
-        'dc_id',
-        [Sequelize.col('dc.dc_name'), 'dc_name']
-      ],
-      where:{id:id}
-  }).then(result=>{
-      res.status(200).send({
-          message:"Success",
-          data:result
-      });
+    include: [
+      {
+        model: DC,
+        as: 'dc',
+        attributes: []
+      },
+    ],
+    attributes: [
+      'id',
+      'store_code',
+      'store_name',
+      'is_active',
+      'address',
+      'createdAt',
+      'updatedAt',
+      'dc_id',
+      [Sequelize.col('dc.dc_name'), 'dc_name']
+    ],
+    where: { id: id }
+  }).then(result => {
+    res.status(200).send({
+      message: "Success",
+      data: result
+    });
   })
 }
 
-async function update (req,res) {
+async function update(req, res) {
 
   const existStoreCode = await Store.findOne({
-    where:{
-        store_code: {
-          [Op.iLike] : req.body.dc_code
-        },
-        id: { [Op.ne]: req.body.id }
+    where: {
+      store_code: {
+        [Op.iLike]: req.body.dc_code
+      },
+      id: { [Op.ne]: req.body.id }
     }
   });
 
-  if(existStoreCode){
-      return res.status(200).send({
-          is_ok:false,
-          message:"Store Code is already exist"
-      });
+  if (existStoreCode) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "Store Code is already exist"
+    });
   }
 
   const dcId = await DC.findOne({
-      where:{
-          id: req.body.dc_id,
-          is_active:true
-      }
+    where: {
+      id: req.body.dc_id,
+      is_active: true
+    }
   });
 
-  if(!dcId){
-      return res.status(200).send({
-          is_ok:false,
-          message:"DC is not found"
-      });
+  if (!dcId) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "DC is not found"
+    });
   }
 
   const t = await sequelize.transaction();
-  try{
-      var data = {
-        store_code:req.body.store_code,
-        store_name:req.body.store_name,
-        is_active:req.body.is_active,
-        address:req.body.address,
-        dc_id:req.body.dc_id
-      }
-      
-      const store = await Store.update(data,{
-        where:{
-          id:req.body.id
-        },
-        transaction: t});
-      
-      await t.commit();
-      return res.status(200).send({
-          is_ok:true,
-          message:"Successfully saved"
-      });
+  try {
+    var data = {
+      store_code: req.body.store_code,
+      store_name: req.body.store_name,
+      is_active: req.body.is_active,
+      address: req.body.address,
+      dc_id: req.body.dc_id
+    }
 
-    }catch(error){
-        await t.rollback();
-        return res.status(200).send({
-            is_ok:false,
-            message:error.toString()
-        });
-    } 
+    const store = await Store.update(data, {
+      where: {
+        id: req.body.id
+      },
+      transaction: t
+    });
+
+    await t.commit();
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved"
+    });
+
+  } catch (error) {
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: error.toString()
+    });
+  }
 }
 
-async function create (req,res){
+async function create(req, res) {
 
   const existStoreCOde = await Store.findOne({
-    where:{
-        store_code: {
-          [Op.iLike] : req.body.store_code
-        }
-    }
-});
-
-if(existStoreCOde){
-    return res.status(200).send({
-        is_ok:false,
-        message:"Store Code is already Exist"
-    });
-}
-
-  const dcId = await DC.findOne({
-      where:{
-          id: req.body.dc_id,
-          is_active:true
+    where: {
+      store_code: {
+        [Op.iLike]: req.body.store_code
       }
+    }
   });
 
-  if(!dcId){
-      return res.status(200).send({
-          is_ok:false,
-          message:"DC is not found"
-      });
+  if (existStoreCOde) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "Store Code is already Exist"
+    });
+  }
+
+  const dcId = await DC.findOne({
+    where: {
+      id: req.body.dc_id,
+      is_active: true
+    }
+  });
+
+  if (!dcId) {
+    return res.status(200).send({
+      is_ok: false,
+      message: "DC is not found"
+    });
   }
 
   const t = await sequelize.transaction();
-  try{
-      
-        var storeData = {
-          store_code:req.body.store_code,
-          store_name:req.body.store_name,
-          is_active:req.body.is_active,
-          address:req.body.address,
-          dc_id : req.body.dc_id
-        }
-        console.log(storeData);
-        await Store.create(storeData,{transaction: t});
-      
-      
-      await t.commit();
-      return res.status(200).send({
-          is_ok:true,
-          message:"Successfully saved"
-      });
+  try {
 
-    }catch(error){
-        await t.rollback();
-        return res.status(200).send({
-            is_ok:false,
-            message:error.toString()
-        });
-    } 
+    var storeData = {
+      store_code: req.body.store_code,
+      store_name: req.body.store_name,
+      is_active: req.body.is_active,
+      address: req.body.address,
+      dc_id: req.body.dc_id
+    }
+    await Store.create(storeData, { transaction: t });
+
+
+    await t.commit();
+    return res.status(200).send({
+      is_ok: true,
+      message: "Successfully saved"
+    });
+
+  } catch (error) {
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: error.toString()
+    });
+  }
 }
 
-const listStoreOption = (req,res) => {
+const listStoreOption = (req, res) => {
 
   var param_order = ['store_name', "asc"];
-  var where_query = {'is_active':true}
+  var where_query = { 'is_active': true }
 
   where_query = {
     ...where_query,
-    dc_id:req.params.dc_id
+    dc_id: req.params.dc_id
   }
 
   Store.findAll({
-      attributes:[
-        ['id','store_id'],
-        'store_name',
-      ],
-      where: where_query,
-      order: [param_order],
-      raw:true
+    attributes: [
+      ['id', 'store_id'],
+      'store_name',
+    ],
+    where: where_query,
+    order: [param_order],
+    raw: true
   })
-  .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Data Found in Store",
-              data:result
-          })
-      }else{
-          res.status(200).send({
-              message:"Success",
-              data:result
-          })
+    .then(result => {
+      if (result.count == 0) {
+        res.status(200).send({
+          message: "No Data Found in Store",
+          data: result
+        })
+      } else {
+        res.status(200).send({
+          message: "Success",
+          data: result
+        })
       }
-  });
+    });
 };
 
-const upload = async(req, res) => {
-  
+const upload = async (req, res) => {
+
   const t = await sequelize.transaction();
-  try{
+  try {
     if (req.file == undefined) {
       return res.status(200).send({
         is_ok: false,
-        message: "Please upload a excel file!"});
+        message: "Please upload a excel file!"
+      });
     }
     let dir = __basedir + "/uploads/excel/" + req.file.filename;
     const file = xlsx.readFile(dir);
-    
+
     const sheets = file.SheetNames
 
     const sheetExists = sheets.includes('store');
 
-    if(!sheetExists){
+    if (!sheetExists) {
       return res.status(200).send({
         is_ok: false,
         message: `Missing 'store' sheet in the uploaded file`
@@ -498,67 +494,54 @@ const upload = async(req, res) => {
     }
 
     var result = [];
+    let temp = xlsx.utils.sheet_to_json(file.Sheets['store'])
+    let sheet = file.Sheets['store']
 
-    console.log(sheets)
-    
-  
-    // for(let i = 0; i < sheets.length; i++)
-    // {
-      let temp = xlsx.utils.sheet_to_json(file.Sheets['store'])
-      let sheet = file.Sheets['store']
-      
-      if(temp.length > 200){
-        fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
-          if (err) throw err;
-        
-          for (const file of files) {
-            fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
-              if (err) throw err;
-            });
-          }
-        });
-  
-        return res.status(200).send({
-          is_ok: false,
-          message: "Maximum upload limit is 200 rows."
-        });
-      }
+    if (temp.length > 200) {
+      fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
+        if (err) throw err;
 
-      if(temp.length < 1){
-        return res.status(200).send({
-          is_ok: false,
-          message: "The uploaded file is empty"
-        });
-      }
+        for (const file of files) {
+          fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
+            if (err) throw err;
+          });
+        }
+      });
 
-      const requiredColumns = ["No","Store Code","Store Name","Address","Is Active","DC Code","Company Code"];
+      return res.status(200).send({
+        is_ok: false,
+        message: "Maximum upload limit is 200 rows."
+      });
+    }
 
-      const resValid = validateHeaders(sheet,requiredColumns)
-      console.log("RES VALID");
-      console.log(resValid);
+    if (temp.length < 1) {
+      return res.status(200).send({
+        is_ok: false,
+        message: "The uploaded file is empty"
+      });
+    }
 
-      if(!resValid.isValid){
-        return res.status(200).send({
-          is_ok: false,
-          message: "Wrong file template for column "+ resValid.missingHeaders.join(", ")
-        });
-      }
+    const requiredColumns = ["No", "Store Code", "Store Name", "Address", "Is Active", "DC Code", "Company Code"];
 
-      for(let j = 0; j < temp.length; j++){
-        //console.log(temp)
-        var resp = null;
-        resp = await updateOrCreateStore(j,temp[j],t);
-       
-        // if(sheets[i] == "mds.mdm.DealerGroup") resp = await updateOrCreate(MdmDealerGroup,temp[j],t);
-        // if(sheets[i] == "mds.mdm.DealerCompany") resp = await updateOrCreate(MdmCompany,temp[j],t);
-        // if(sheets[i] == "mds.mdm.Outlet") resp = await updateOrCreate(MdmOutlet,temp[j],t);
-        result.push(resp);
-      }
+    const resValid = validateHeaders(sheet, requiredColumns)
+
+    if (!resValid.isValid) {
+      return res.status(200).send({
+        is_ok: false,
+        message: "Wrong file template for column " + resValid.missingHeaders.join(", ")
+      });
+    }
+
+    for (let j = 0; j < temp.length; j++) {
+      var resp = null;
+      resp = await updateOrCreateStore(j, temp[j], t);
+      result.push(resp);
+    }
     // }
-    
+
     fs.readdir(__basedir + "/uploads/excel/", (err, files) => {
       if (err) throw err;
-    
+
       for (const file of files) {
         fs.unlink(path.join(__basedir + "/uploads/excel/", file), err => {
           if (err) throw err;
@@ -570,164 +553,181 @@ const upload = async(req, res) => {
     return res.status(200).send({
       is_ok: true,
       message: "Successfully Upload : " + req.file.originalname,
-      data:result
+      data: result
     });
 
-    }catch(error){
-      console.log(error.toString());
-      await t.rollback();
-      return res.status(200).send({
-        is_ok: false,
-        message: "Could not upload the file: " + req.file.originalname,
-        error:error.toString()
-      });
-    }
-} 
+  } catch (error) {
+    await t.rollback();
+    return res.status(200).send({
+      is_ok: false,
+      message: "Could not upload the file: " + req.file.originalname,
+      error: error.toString()
+    });
+  }
+}
 
-const updateOrCreateStore = async(i,row,t)=>{
+const updateOrCreateStore = async (i, row, t) => {
 
-  if(!row.hasOwnProperty('Company Code')) {
-    return {is_ok:false,message:"Company Code is blank at row "+(i+1)}
+  if (!row.hasOwnProperty('Company Code')) {
+    return { is_ok: false, message: "Company Code is blank at row " + (i + 1) }
   }
 
-  if(!row.hasOwnProperty('DC Code')) {
-    return {is_ok:false,message:"DC Code is blank at row "+(i+1)}
+  if (!row.hasOwnProperty('DC Code')) {
+    return { is_ok: false, message: "DC Code is blank at row " + (i + 1) }
   }
 
-  if(!row.hasOwnProperty('Store Code')) {
-    return {is_ok:false,message:"Store Code is blank at row "+(i+1)}
+  if (!row.hasOwnProperty('Store Code')) {
+    return { is_ok: false, message: "Store Code is blank at row " + (i + 1) }
   }
 
-  if(!row.hasOwnProperty('Store Name')) {
-    return {is_ok:false,message:"Store Name is blank at row "+(i+1)}
+  if (!row.hasOwnProperty('Store Name')) {
+    return { is_ok: false, message: "Store Name is blank at row " + (i + 1) }
   }
 
-  if(!row.hasOwnProperty('Address')) {
+  if (!row.hasOwnProperty('Address')) {
     row['Address'] = ''
   }
 
-  if(!row.hasOwnProperty('Is Active')) {
-    return {is_ok:false,message:"Is Active is blank at row "+(i+1)}
+  if (!row.hasOwnProperty('Is Active')) {
+    return { is_ok: false, message: "Is Active is blank at row " + (i + 1) }
   }
 
-  if(typeof row["Is Active"] === 'string'){
+  if (typeof row["Is Active"] === 'string') {
 
     const value = row["Is Active"].toLowerCase();
-    if(!["true", "false"].includes(value)) {
-      return {is_ok:false,message:"Status is not valid at row "+(i+1)}
+    if (!["true", "false"].includes(value)) {
+      return { is_ok: false, message: "Status is not valid at row " + (i + 1) }
     }
 
-    if(value == "true"){
+    if (value == "true") {
       row["Is Active"] = true;
     }
 
-    if(value == "false"){
+    if (value == "false") {
       row["Is Active"] = false;
     }
   }
 
   const existCompany = await Company.findOne({
-    where:{
-      company_code:where(fn('LOWER', col('company_code')), fn('LOWER', row["Company Code"]))
+    where: {
+      company_code: where(fn('LOWER', col('company_code')), fn('LOWER', row["Company Code"]))
     },
     transaction: t
   })
 
-  if(!existCompany){
-    return {is_ok:false,message:"Company Code is not exist at row "+(i+1)}
+  if (!existCompany) {
+    return { is_ok: false, message: "Company Code is not exist at row " + (i + 1) }
   }
 
   const existDC = await DC.findOne({
-    where:{
-      dc_code:where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"]))
+    where: {
+      dc_code: where(fn('LOWER', col('dc_code')), fn('LOWER', row["DC Code"]))
     },
     transaction: t
   })
 
-  if(!existDC){
-    return {is_ok:false,message:"DC Code is not exist at row "+(i+1)}
+  if (!existDC) {
+    return { is_ok: false, message: "DC Code is not exist at row " + (i + 1) }
   }
 
-  
+
   const existStore = await Store.findOne({
-    where:{
-      store_code:where(fn('LOWER', col('store_code')), fn('LOWER', row["Store Code"]))
+    where: {
+      store_code: where(fn('LOWER', col('store_code')), fn('LOWER', row["Store Code"]))
     },
-    transaction:t
+    transaction: t
   })
 
   var storeData = {
-    dc_id:existDC.id,
-    store_name:row["Store Name"],
-    address:row["Address"],
-    is_active:row["Is Active"],
-    store_code:row["Store Code"]
+    dc_id: existDC.id,
+    store_name: row["Store Name"],
+    address: row["Address"],
+    is_active: row["Is Active"],
+    store_code: row["Store Code"]
   }
 
-  try{
-    if(existStore){
+  try {
+    if (existStore) {
 
       let hasChanged = Object.keys(storeData).some(key => {
         // Ensure to handle the case where the key may not exist on existDC
         return storeData[key] !== existStore[key];
       });
-  
+
       if (!hasChanged) {
-        return { is_ok:false, message: 'No changes detected at row '+(i+1) };
+        return { is_ok: false, message: 'No changes detected at row ' + (i + 1) };
       }
 
       await Store.update(storeData,
         {
-          where:{
-            id:existStore.id
+          where: {
+            id: existStore.id
           },
-          transaction:t
+          transaction: t
         }
       )
-      return {is_ok:true,message:"Successfully update at row "+(i+1)}
-    }else{
+      return { is_ok: true, message: "Successfully update at row " + (i + 1) }
+    } else {
       // const existStoreName = await Store.findOne({
       //   where:{
       //     dc_code:where(fn('LOWER', col('store_name')), fn('LOWER', row["Store Name"]))
       //   },
       //   transaction: t
       // })
-  
+
       // if(existStoreName){
       //   return {is_ok:false,message:"Store Name is already exist at row "+(i+1)}
       // }
 
-      await Store.create(storeData,{transaction:t})
-      return {is_ok:true,message:"Successfully insert at row "+(i+1)}
+      await Store.create(storeData, { transaction: t })
+      return { is_ok: true, message: "Successfully insert at row " + (i + 1) }
     }
-    
-  }catch(e){
-    return {is_ok:false,message:error.toString()};
+
+  } catch (e) {
+    return { is_ok: false, message: error.toString() };
   }
-  
+
 }
 
-const download = async(req, res) => {
+const download = async (req, res) => {
+
+  let where_query = {};
+
+  if (req.role_name != "admin") {
+    if (req.dcs && req.dcs.length > 0) {
+      where_query.dc_id = {
+        [Op.in]: req.dcs
+      };
+    } else {
+      where_query.dc_id = {
+        [Op.in]: [0]
+      };
+    }
+
+    where_query['$dc.is_active$'] = true;
+  }
+
 
   try {
     // Fetch all data from your data collection
     const result = await Store.findAll({
+      where: where_query,
       include: [
-        { 
-          model: DC, 
-          as : 'dc',
-          attributes: ['dc_code','dc_name'],
+        {
+          model: DC,
+          as: 'dc',
+          attributes: ['dc_code', 'dc_name'],
           include: [
             {
-              model: Company, 
-              as : 'company',
-              attributes: ['company_code','company_name'],
+              model: Company,
+              as: 'company',
+              attributes: ['company_code', 'company_name'],
             }
-            
+
           ]
         },
       ],
-      attributes:[
+      attributes: [
         'store_code',
         'store_name',
         'address',
@@ -737,19 +737,17 @@ const download = async(req, res) => {
       // You can specify any options here if needed
     });
 
-    console.log(result)
-
     const formattedResult = result.map((item, index) => {
 
       return {
         No: index + 1, // Incremental number
-        'Store Code':item.store_code,
+        'Store Code': item.store_code,
         'Store Name': item.store_name, // Use the alias for dc_name
         'Address': item.address,
         'Is Active': item.is_active ? 'TRUE' : 'FALSE',
-        'DC Code':item.dc.dc_code,
-        'DC Name':item.dc.dc_name,
-        'Company Code':item.dc.company.company_code,
+        'DC Code': item.dc.dc_code,
+        'DC Name': item.dc.dc_name,
+        'Company Code': item.dc.company.company_code,
         'Company Name': item.dc.company.company_name // Use the alias for company code
       }
     });
@@ -778,62 +776,55 @@ const download = async(req, res) => {
   }
 }
 
-const listOptionByDC = (req,res) => {
+const listOptionByDC = (req, res) => {
 
   var param_order = ['store_name', "asc"];
-  var where_query = {'is_active':true}
+  var where_query = { 'is_active': true }
 
   var dc_id = req.body.filter_dc;
 
-  // res.status(200).send({
-  //     message:"No Data Found in DC"
-  // });
-
-  console.log("===FILTER_DC===")
-  console.log(req.body.filter_dc);
-
-  if(dc_id.length > 0){
+  if (dc_id.length > 0) {
     where_query = {
       ...where_query,
-      dc_id : {
-        [Op.in] : dc_id
+      dc_id: {
+        [Op.in]: dc_id
       }
     }
   }
 
   Store.findAll({
-      attributes:[
-        ['id','store_id'],
-        'store_name',
-      ],
-      where: where_query,
-      order: [param_order],
-      raw:true
+    attributes: [
+      ['id', 'store_id'],
+      'store_name',
+    ],
+    where: where_query,
+    order: [param_order],
+    raw: true
   })
-  .then(result => {
-      if(result.count == 0){
-          res.status(200).send({
-              message:"No Data Found in Store",
-              data:result
-          })
-      }else{
-          res.status(200).send({
-              message:"Success",
-              data:result
-          })
+    .then(result => {
+      if (result.count == 0) {
+        res.status(200).send({
+          message: "No Data Found in Store",
+          data: result
+        })
+      } else {
+        res.status(200).send({
+          message: "Success",
+          data: result
+        })
       }
-  });
+    });
 };
 
 
 
 module.exports = {
-    create,
-    list,
-    detail,
-    update,
-    listStoreOption,
-    upload,
-    download,
-    listOptionByDC
+  create,
+  list,
+  detail,
+  update,
+  listStoreOption,
+  upload,
+  download,
+  listOptionByDC
 }
